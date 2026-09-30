@@ -24,7 +24,7 @@ if(!s){s=await decryptSeed(); localStorage.setItem(KEY,JSON.stringify(s));}
 const canonicalCats={"supermercado":"Supermercado","farmacia":"Farmacia","otros/comida":"Otros/comida","nafta":"Nafta","prestamos":"Préstamos","préstamos":"Préstamos"};
 const canonicalCat=x=>canonicalCats[String(x||"").trim().toLowerCase()]||String(x||"").trim();
 s.onePaymentCategories=s.onePaymentCategories.map(c=>canonicalCat(c));
-s.onePaymentCategories=[...new Set([...seed.onePaymentCategories.map(c=>canonicalCat(c)),...s.onePaymentCategories])];
+s.onePaymentCategories=[...new Set(s.onePaymentCategories.map(c=>canonicalCat(c)))];
 s.onePayments.forEach(e=>e.category=canonicalCat(e.category));
 s.cards=s.cards.map(c=>c.name.toLowerCase()==="master galicia mia"?{...c,name:"MASTER GALICIA MIA"}:c);
 s.onePayments.forEach(e=>{if(e.card.toLowerCase()==="master galicia mia")e.card="MASTER GALICIA MIA"});
