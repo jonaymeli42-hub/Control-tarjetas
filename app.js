@@ -150,6 +150,7 @@ function openCard(name){
   renderCardModal();
   $("cardModal").classList.add("open"); $("cardModal").setAttribute("aria-hidden","false");
 }
+window.openCard=openCard;
 function closeCardModal(){
   $("cardModal").classList.remove("open"); $("cardModal").setAttribute("aria-hidden","true");
 }
