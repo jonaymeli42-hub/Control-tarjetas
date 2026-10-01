@@ -4,7 +4,7 @@
 .screen:target{display:block!important}.screen:target~.screen{display:none}
 
 /* Rediseño de Inicio v20 */
-.general-card{background:#111827;color:#fff;border-radius:22px;padding:22px;margin:4px 0 14px;box-shadow:0 6px 20px #0002;text-align:center}
+.general-card{background:#15803d;color:#fff;border-radius:22px;padding:22px;margin:4px 0 14px;box-shadow:0 6px 20px #0002;text-align:center}
 .general-label{font-size:12px;font-weight:800;letter-spacing:1.5px;opacity:.72}
 .general-total{font-size:34px;font-weight:850;line-height:1.15;margin:7px 0 16px}
 .general-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:10px}
