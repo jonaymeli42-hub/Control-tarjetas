@@ -51,7 +51,7 @@ const ajeno=e=>e.responsible==="Ajeno";
 const remain=e=>{let now=new Date();now.setDate(1);let st=parseMonth(e.start),en=endMonth(e);if(idx(now)<idx(st))return Number(e.installments);if(idx(now)>idx(en))return 0;return Number(e.installments)-(idx(now)-idx(st));};
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const jsarg=x=>JSON.stringify(x);
-function save(){localStorage.setItem(KEY,JSON.stringify(s));}
+function save(){localStorage.setItem(KEY,JSON.stringify(s));window.DriveBackup?.changed();}
 function quotaTotals(m){let a=s.expenses.filter(e=>active(e,m));let total=a.reduce((q,e)=>q+Number(e.monthly),0);let mine=a.filter(e=>!ajeno(e)).reduce((q,e)=>q+Number(e.monthly),0);return {a,total,mine,other:total-mine};}
 function oneTotal(m){return s.onePayments.filter(e=>e.month===ym(m)).reduce((q,e)=>q+Number(e.amount),0);}
 function oneTotals(m){
@@ -281,3 +281,9 @@ if(requestedScreen==="oneAddScreen"){
 render();
 
 // Navigation fallback: forms also open through normal URL query links, so Android/PWA browsers do not depend on click handlers.
+
+window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:structuredClone(s)})});
+
+if (window.isSecureContext && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register(new URL("sw.js", document.baseURI), {scope: new URL("./", document.baseURI).pathname, updateViaCache: "none"}).then(registration => registration.update()).catch(() => {});
+}
