@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=movements-1"><title>Control de Tarjetas</title><link rel="stylesheet" href="drive-backup.css"><script src="drive-backup.js?v=manual-copy-2" defer></script></head><body>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=movements-2"><title>Control de Tarjetas</title><link rel="stylesheet" href="drive-backup.css"><script src="drive-backup.js?v=manual-copy-2" defer></script></head><body>
 <header><div><small>CONTROL DE TARJETAS</small><h1 id="headerTitle">Resumen del mes</h1></div><button id="backup" title="Respaldo">↥</button></header>
 <main>
 <section id="home" class="screen active">
@@ -26,7 +26,7 @@
     </div>
   </div>
 
-  <div class="heading"><h2>Mis tarjetas</h2><button data-go="movements">≡<span>Movimientos</span></button><button data-go="cards">Administrar</button></div>
+  <div class="heading"><h2>Mis tarjetas</h2><button data-go="cards">Administrar</button></div>
   <p class="hint">En cada tarjeta ves los totales del mes. Tocá una para abrir el detalle de cuotas y consumos, separados entre míos y ajenos.</p>
   <div id="cardTotals"></div>
 
@@ -60,7 +60,7 @@
 <section id="backupScreen" class="screen"><section data-drive-backup></section><div class="heading"><h2>Respaldo de datos</h2><button data-go="home">Volver</button></div><p class="hint">Tus datos principales se guardan en este teléfono. Para no depender de una sola copia, podés crear un respaldo completo y guardarlo en Google Drive u otro lugar seguro.</p><button class="primary" id="downloadBackup">↓ Descargar respaldo</button><button class="secondary" id="shareBackup">↗ Compartir respaldo</button><button class="secondary" id="importBackup">↑ Restaurar desde un respaldo</button><input id="backupFile" type="file" accept="application/json,.json" hidden><div class="row"><span><b>¿Qué se guarda?</b><small>Gastos en cuotas, consumos a un pago, tarjetas, categorías e historial.</small></span></div><div class="row"><span><b>Recomendación</b><small>Después de hacer cambios importantes, compartí el respaldo y elegí Google Drive para guardarlo.</small></span></div></section>
 
 <section id="categories" class="screen"><div class="heading"><h2>Categorías</h2><button data-go="onePayments">Volver</button></div><p class="hint">Podés agregar, renombrar o eliminar categorías. Los consumos históricos conservan la categoría que tenían.</p><div class="category-add"><input id="newCategory" placeholder="Nueva categoría"><button id="addCategory">Agregar</button></div><div id="categoriesList"></div></section>
-<section id="movements" class="screen"><div class="heading"><h2>Movimientos</h2></div><p class="hint" id="movementsCount"></p><div id="movementsList"></div></section>
+<section id="movements" class="screen"><div class="heading"><h2>Movimientos</h2></div><p class="hint">Registros nuevos ordenados por fecha y hora de carga, no por fecha del consumo.</p><p class="hint" id="movementsCount"></p><div id="movementsList"></div></section>
 </main>
 <nav><button data-go="home">⌂<span>Inicio</span></button><button data-go="onePayments">$<span>1 pago</span></button><button data-go="history">↗<span>Evolución</span></button><button data-go="pendingScreen">◷<span>Cuotas pendientes</span></button><button data-go="finished">✓<span>Terminados</span></button><button data-go="movements">≡<span>Movimientos</span></button><button data-go="cards">▣<span>Tarjetas</span></button></nav>
 <script>
@@ -72,4 +72,4 @@
   }
   window.__openAdd=function(id){document.querySelectorAll(".screen").forEach(function(x){x.classList.remove("active")});var el=document.getElementById(id);if(el){el.classList.add("active");window.scrollTo(0,0)} };
 })();
-</script><script type="module" src="app.js?v=movements-1"></script></body></html>
+</script><script type="module" src="app.js?v=movements-2"></script></body></html>

@@ -59,3 +59,5 @@
 nav{overflow-x:auto;justify-content:flex-start;gap:4px}nav button{flex:1 0 70px;min-width:70px;white-space:nowrap}
 .movement-info{display:flex;flex-direction:column;gap:5px;min-width:0;overflow-wrap:anywhere}.movement-date{font-weight:700;color:#2563eb}.movement-row{padding:16px;gap:16px}.movement-row .expense-side>b{font-size:20px}
 @media(max-width:560px){.movement-row{flex-direction:column;align-items:stretch}.movement-row .expense-side{gap:8px}}
+
+nav{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px}nav button{flex:0 0 100px;min-width:100px;max-width:100px;padding:5px 4px;box-sizing:border-box}nav span{white-space:nowrap;font-size:10px;line-height:16px}
