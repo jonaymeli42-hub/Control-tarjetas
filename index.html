@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=payment-agenda-2"><title>Control de Tarjetas</title><link rel="stylesheet" href="drive-backup.css"><script src="drive-backup.js?v=manual-copy-2" defer></script><script src="theme.js?v=theme-1" defer></script><script src="agenda-model.js?v=2" defer></script><script src="agenda.js?v=2" defer></script></head><body>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=loan-purpose-1"><title>Control de Tarjetas</title><link rel="stylesheet" href="drive-backup.css"><script src="drive-backup.js?v=manual-copy-2" defer></script><script src="theme.js?v=theme-1" defer></script><script src="agenda-model.js?v=2" defer></script><script src="agenda.js?v=2" defer></script></head><body>
 <header><div><small>CONTROL DE TARJETAS</small><h1 id="headerTitle">Resumen del mes</h1></div><div class="header-actions"><button id="open-payment-agenda" type="button" aria-label="Abrir agenda de pagos" title="Agenda de pagos">Agenda</button><button id="theme-toggle" type="button" aria-label="Activar modo oscuro">Oscuro</button><button id="backup" title="Respaldo">↥</button></div></header>
 <main>
 <section id="home" class="screen active">
@@ -9,7 +9,7 @@
     <div class="general-total" id="grandTotal">$0</div>
     <div class="general-breakdown">
       <div><small>Gasto general mío</small><b id="grandMine">$0</b></div>
-      <div><small>Gasto general ajeno</small><b id="grandOther">$0</b></div>
+      <div><small>Gasto general ajeno</small><b id="grandOther">$0</b></div><div class="loans-total"><small>Para préstamos</small><b id="grandLoans">$0</b></div>
     </div>
   </div>
 
@@ -17,17 +17,17 @@
     <div class="home-block">
       <div class="home-block-title">💳 Cuotas</div>
       <b id="total">$0</b>
-      <div class="home-subtotals"><span><small>Cuotas mías</small><strong id="mine">$0</strong></span><span><small>Cuotas ajenas</small><strong id="other">$0</strong></span></div>
+      <div class="home-subtotals"><span><small>Cuotas mías</small><strong id="mine">$0</strong></span><span><small>Cuotas ajenas</small><strong id="other">$0</strong></span><span><small>Cuotas para préstamos</small><strong id="quotaLoans">$0</strong></span></div>
     </div>
     <div class="home-block">
       <div class="home-block-title">🛒 Consumo 1 pago</div>
       <b id="oneTotal">$0</b>
-      <div class="home-subtotals"><span><small>1 pago míos</small><strong id="oneMine">$0</strong></span><span><small>1 pago ajenos</small><strong id="oneOther">$0</strong></span></div>
+      <div class="home-subtotals"><span><small>1 pago míos</small><strong id="oneMine">$0</strong></span><span><small>1 pago ajenos</small><strong id="oneOther">$0</strong></span><span><small>1 pago para préstamos</small><strong id="oneLoans">$0</strong></span></div>
     </div>
   </div>
 
   <div class="heading"><h2>Mis tarjetas</h2><button data-go="cards">Administrar</button></div>
-  <p class="hint">En cada tarjeta ves los totales del mes. Tocá una para abrir el detalle de cuotas y consumos, separados entre míos y ajenos.</p>
+  <p class="hint">En cada tarjeta ves los totales del mes. Tocá una para abrir el detalle de cuotas y consumos, separados entre míos, ajenos y préstamos.</p>
   <div id="cardTotals"></div>
 
   <div class="quick-grid"><a class="primary quick-link" id="add" href="?screen=addScreen">＋ Agregar gasto en cuotas</a><a class="secondary quick-link" id="addOne" href="?screen=oneAddScreen">＋ Agregar consumo a un pago</a></div>
@@ -43,18 +43,18 @@
 </div>
 
 <section id="addScreen" class="screen"><div class="heading"><h2>Agregar gasto</h2><button data-go="home">Cancelar</button></div>
-<form id="form" class="form"><label>Descripción<input id="desc" required></label><label>Tarjeta<select id="card"></select></label><label>Cuota mensual<input id="amount" type="number" min="0" step=".01" required></label><label>Cantidad de cuotas<input id="installments" type="number" min="1" value="1" required></label><label>Mes de inicio<input id="start" type="month" required></label><label class="switch">Es gasto ajeno <input id="isOther" type="checkbox"></label><p>También podés escribir “(ajeno)” en la descripción.</p><button class="primary">Guardar gasto</button></form></section>
+<form id="form" class="form"><label>Descripción<input id="desc" required></label><label>Tarjeta<select id="card"></select></label><label>Cuota mensual<input id="amount" type="number" min="0" step=".01" required></label><label>Cantidad de cuotas<input id="installments" type="number" min="1" value="1" required></label><label>Mes de inicio<input id="start" type="month" required></label><label>Clasificación<select id="expenseResponsible"><option value="Mío">Mío</option><option value="Ajeno">Ajeno</option><option value="Préstamos">Préstamos</option></select></label><p>Los gastos para préstamos se muestran separados del gasto personal.</p><button class="primary" type="submit">Guardar gasto</button></form></section>
 
 <section id="onePayments" class="screen"><div class="heading"><h2>Consumos a un pago</h2><button id="manageCategories">Categorías</button></div><div class="monthnav"><button id="onePrev">‹</button><b id="oneMonthTitle"></b><button id="oneNext">›</button></div><div id="oneSummary"></div><a class="primary quick-link" id="addOne2" href="?screen=oneAddScreen">＋ Agregar consumo</a><div class="heading"><h3>Consumos del mes</h3></div><div id="oneList"></div></section>
 
-<section id="oneAddScreen" class="screen"><div class="heading"><h2>Agregar consumo a un pago</h2><button data-go="onePayments">Cancelar</button></div><form id="oneForm" class="form"><label>Descripción<input id="oneDesc" required placeholder="Ej.: Supermercado Jumbo"></label><label>Monto<input id="oneAmount" type="number" min="0" step=".01" required></label><label>Fecha del consumo<input id="oneDate" type="date" required></label><label>Tarjeta<select id="oneCard"></select></label><label>Categoría<select id="oneCategory"></select></label><label>Mes del resumen<input id="oneMonth" type="month" required></label><label>Responsable<select id="oneResponsible"><option value="Mío">Mío</option><option value="Ajeno">Ajeno</option></select></label><button class="primary">Guardar consumo</button></form></section>
+<section id="oneAddScreen" class="screen"><div class="heading"><h2>Agregar consumo a un pago</h2><button data-go="onePayments">Cancelar</button></div><form id="oneForm" class="form"><label>Descripción<input id="oneDesc" required placeholder="Ej.: Supermercado Jumbo"></label><label>Monto<input id="oneAmount" type="number" min="0" step=".01" required></label><label>Fecha del consumo<input id="oneDate" type="date" required></label><label>Tarjeta<select id="oneCard"></select></label><label>Categoría<select id="oneCategory"></select></label><label>Mes del resumen<input id="oneMonth" type="month" required></label><label>Clasificación<select id="oneResponsible"><option value="Mío">Mío</option><option value="Ajeno">Ajeno</option><option value="Préstamos">Préstamos</option></select></label><button class="primary" type="submit">Guardar consumo</button></form></section>
 
 <section id="cardDetail" class="screen"><div class="heading"><h2 id="cardDetailTitle">Tarjeta</h2><button data-go="home">Volver</button></div><div class="monthnav"><button id="detailPrev">‹</button><b id="detailMonth"></b><button id="detailNext">›</button></div><div id="detailSummary"></div><div class="heading"><h3>Gastos en cuotas</h3></div><div id="detailInstallments"></div><div class="heading"><h3>Consumos a un pago</h3></div><div id="detailOne"></div></section>
 
 <section id="summary" class="screen"><h2>Resumen mensual</h2><div id="months"></div></section>
-<section id="history" class="screen"><div class="heading"><h2>Evolución</h2></div><p class="hint">Tus gastos propios mes por mes. El mes actual queda resaltado y la pantalla se posiciona automáticamente en él al entrar.</p><div id="historyList"></div></section>
+<section id="history" class="screen"><div class="heading"><h2>Evolución</h2></div><p class="hint">Tus gastos personales mes por mes, con préstamos y ajenos separados. El mes actual queda resaltado y la pantalla se posiciona automáticamente en él al entrar.</p><div id="historyList"></div></section>
 
-<section id="pendingScreen" class="screen"><h2>Cuotas pendientes</h2><div id="pendingList"></div><div class="future-card"><small>CUOTAS FUTURAS</small><b id="futurePending">$0</b><span>Importe de cuotas posteriores al mes seleccionado.</span></div></section>
+<section id="pendingScreen" class="screen"><h2>Cuotas pendientes</h2><div id="pendingList"></div><div class="future-card"><small>CUOTAS FUTURAS</small><b id="futurePending">$0</b><span>Importe de cuotas posteriores al mes seleccionado.</span><span id="futurePendingBreakdown"></span></div></section>
 <section id="finished" class="screen"><div class="heading"><h2>Gastos terminados</h2></div><p class="hint">Cuando una compra completa todas sus cuotas, deja de aparecer entre los activos y queda guardada acá como historial.</p><div id="finishedList"></div></section>
 <section id="cards" class="screen"><div class="heading"><h2>Tarjetas</h2><button id="newCard">＋ Nueva</button></div><div id="cardsList"></div></section>
 <section id="backupScreen" class="screen"><section data-drive-backup></section><div class="heading"><h2>Respaldo de datos</h2><button data-go="home">Volver</button></div><p class="hint">Tus datos principales se guardan en este teléfono. Para no depender de una sola copia, podés crear un respaldo completo y guardarlo en Google Drive u otro lugar seguro.</p><button class="primary" id="downloadBackup">↓ Descargar respaldo</button><button class="secondary" id="shareBackup">↗ Compartir respaldo</button><button class="secondary" id="importBackup">↑ Restaurar desde un respaldo</button><input id="backupFile" type="file" accept="application/json,.json" hidden><div class="row"><span><b>¿Qué se guarda?</b><small>Gastos en cuotas, consumos a un pago, tarjetas, categorías e historial.</small></span></div><div class="row"><span><b>Recomendación</b><small>Después de hacer cambios importantes, compartí el respaldo y elegí Google Drive para guardarlo.</small></span></div></section>
@@ -72,4 +72,4 @@
   }
   window.__openAdd=function(id){document.querySelectorAll(".screen").forEach(function(x){x.classList.remove("active")});var el=document.getElementById(id);if(el){el.classList.add("active");window.scrollTo(0,0)} };
 })();
-</script><script type="module" src="app.js?v=agenda-boot-fix-1"></script></body></html>
+</script><script type="module" src="app.js?v=loan-purpose-1"></script></body></html>
