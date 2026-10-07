@@ -43,7 +43,24 @@ const parseMonth=x=>{let [a,b]=x.split("-").map(Number);return new Date(a,b-1,1)
 const add=(d,n)=>new Date(d.getFullYear(),d.getMonth()+n,1);
 const idx=d=>d.getFullYear()*12+d.getMonth();
 const monthName=d=>d.toLocaleDateString("es-AR",{month:"long",year:"numeric"});
-const dateBR=x=>{if(!x)return "";let p=x.split("-");return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:x};
+function consumptionDate(value){
+  const text=String(value??'').trim();
+  let match=text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:T.*)?$/),year,month,day;
+  if(match){[,year,month,day]=match;}else{
+    match=text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if(!match)return '';[,day,month,year]=match;
+  }
+  const date=new Date(Number(year),Number(month)-1,Number(day));
+  if(date.getFullYear()!==Number(year)||date.getMonth()+1!==Number(month)||date.getDate()!==Number(day))return '';
+  return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function fillConsumptionDate(record){
+  const input=document.getElementById('oneDate'),original=String(record.date??''),normalized=consumptionDate(original);
+  input.type=original&&!normalized?'text':'date';
+  input.value=normalized||original;
+}
+const dateBR=x=>{const normalized=consumptionDate(x);if(!normalized)return String(x??'');const [year,month,day]=normalized.split('-');return `${day}/${month}/${year}`;};
+
 const active=(e,m)=>{let i=idx(m)-idx(parseMonth(e.start));return i>=0&&i<Number(e.installments)};
 const endMonth=e=>add(parseMonth(e.start),Math.max(0,Number(e.installments)-1));
 const finished=e=>idx(selected)>idx(endMonth(e));
@@ -201,7 +218,7 @@ function populateOne(){ $("oneCard").innerHTML=s.cards.map(c=>`<option>${esc(c.n
 function setFormMode(editing){$("addScreen").querySelector("h2").textContent=editing?"Editar gasto":"Agregar gasto";$("form").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar gasto";}
 function setOneMode(editing){$("oneAddScreen").querySelector("h2").textContent=editing?"Editar consumo":"Agregar consumo a un pago";$("oneForm").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar consumo";}
 $("add").onclick=null;
-function addOneForm(){editingOneId=null;$("oneForm").reset();populateOne();$("oneDate").value=new Date().toISOString().slice(0,10);$("oneMonth").value=ym(selected);$("oneResponsible").value="Mío";setOneMode(false);go("oneAddScreen");}
+function addOneForm(){editingOneId=null;$("oneForm").reset();$("oneDate").type="date";populateOne();$("oneDate").value=new Date().toISOString().slice(0,10);$("oneMonth").value=ym(selected);$("oneResponsible").value="Mío";setOneMode(false);go("oneAddScreen");}
 $("addOne").onclick=null;$("addOne2").onclick=addOneForm;
 window.editExpense=id=>{let e=s.expenses.find(x=>String(x.id)===String(id));if(!e)return;editingId=String(id);populate();$("desc").value=e.description;$("card").value=e.card;$("amount").value=e.monthly;$("installments").value=e.installments;$("start").value=e.start;$("expenseResponsible").value=purpose(e);setFormMode(true);go("addScreen")};
 window.deleteExpense=id=>{let e=s.expenses.find(x=>String(x.id)===String(id));if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.expenses=s.expenses.filter(x=>String(x.id)!==String(id));save();render()}};
@@ -216,8 +233,8 @@ document.addEventListener("click", function(ev){
 });
 
 $("form").onsubmit=e=>{e.preventDefault();let d=$("desc").value.trim(),responsible=$("expenseResponsible").value;if(!d||!$("card").value||!(+$("amount").value>0)||!(+$("installments").value>0)||!$("start").value)return alert("Completá todos los datos.");let data={description:d,card:$("card").value,monthly:+$("amount").value,installments:+$("installments").value,start:$("start").value,responsible:purpose({responsible})};if(editingId!==null){let i=s.expenses.findIndex(x=>String(x.id)===String(editingId));if(i>=0)s.expenses[i]={...s.expenses[i],...data}}else s.expenses.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingId=null;save();go("home")};
-$("oneForm").onsubmit=e=>{e.preventDefault();let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:$("oneDate").value,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
-window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e)return;editingOneId=String(id);populateOne();$("oneDesc").value=e.description;$("oneAmount").value=e.amount;$("oneDate").value=e.date;$("oneCard").value=e.card;$("oneCategory").value=e.category;$("oneMonth").value=e.month;$("oneResponsible").value=purpose(e);setOneMode(true);go("oneAddScreen")};
+$("oneForm").onsubmit=e=>{e.preventDefault();const existing=editingOneId!==null?s.onePayments.find(x=>String(x.id)===String(editingOneId)):null;const enteredDate=$("oneDate").value;const unchangedDate=existing && enteredDate===(consumptionDate(existing.date)||String(existing.date??''));const savedDate=unchangedDate?existing.date:consumptionDate(enteredDate);if(!savedDate)return alert("Revisá la fecha del consumo.");let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:savedDate,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
+window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e)return;editingOneId=String(id);populateOne();$("oneDesc").value=e.description;$("oneAmount").value=e.amount;fillConsumptionDate(e);$("oneCard").value=e.card;$("oneCategory").value=e.category;$("oneMonth").value=e.month;$("oneResponsible").value=purpose(e);setOneMode(true);go("oneAddScreen")};
 window.deleteOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.onePayments=s.onePayments.filter(x=>String(x.id)!==String(id));save();render()}};
 $("newCard").onclick=()=>{let n=prompt("Nombre de la nueva tarjeta:");if(n&&n.trim()&&!s.cards.some(c=>c.name.toLowerCase()===n.trim().toLowerCase())){s.cards.push({name:n.trim(),color:"#4b5563"});save();render()}else if(n)alert("Esa tarjeta ya existe.")};
 window.renameCard=i=>{let n=prompt("Nuevo nombre:",s.cards[i].name);if(n&&n.trim()){let old=s.cards[i].name,newName=n.trim();s.cards[i].name=newName;s.expenses.forEach(e=>{if(e.card===old)e.card=newName});s.onePayments.forEach(e=>{if(e.card===old)e.card=newName});save();render()}};
@@ -283,7 +300,7 @@ if(requestedScreen==="movements")go("movements");
 if(requestedScreen==="oneAddScreen"){
   if(editOneParam!==null){
     const e=s.onePayments.find(x=>String(x.id)===String(editOneParam));
-    if(e){ editingOneId=String(e.id); populateOne(); $("oneDesc").value=e.description; $("oneAmount").value=e.amount; $("oneDate").value=e.date; $("oneCard").value=e.card; $("oneCategory").value=e.category; $("oneMonth").value=e.month; $("oneResponsible").value=purpose(e); setOneMode(true); go("oneAddScreen"); }
+    if(e){ editingOneId=String(e.id); populateOne(); $("oneDesc").value=e.description; $("oneAmount").value=e.amount; fillConsumptionDate(e); $("oneCard").value=e.card; $("oneCategory").value=e.category; $("oneMonth").value=e.month; $("oneResponsible").value=purpose(e); setOneMode(true); go("oneAddScreen"); }
     else { setOneMode(false); $("oneDate").value=new Date().toISOString().slice(0,10); $("oneMonth").value=ym(selected); go("oneAddScreen"); }
   } else { setOneMode(false); $("oneDate").value=new Date().toISOString().slice(0,10); $("oneMonth").value=ym(selected); go("oneAddScreen"); }
 }
