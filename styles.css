@@ -76,3 +76,5 @@ html[data-theme="dark"] .actions .danger{color:#ffb4b4;border-color:#b36a74}
 html[data-theme="dark"] nav button{color:#b8c5d8}html[data-theme="dark"] nav button.active{color:#fff}
 html[data-theme="dark"] .history-month.current-month{border-color:#93b9ff}html[data-theme="dark"] .current-badge{background:#93b9ff;color:#101827}
 @media(max-width:360px){header{padding:14px 12px;gap:8px}header h1{font-size:18px}header small{font-size:10px}}
+
+html[data-theme="dark"] .category-toggle{background:#1e293b;color:#edf2f8}
