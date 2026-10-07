@@ -61,3 +61,18 @@ nav{overflow-x:auto;justify-content:flex-start;gap:4px}nav button{flex:1 0 70px;
 @media(max-width:560px){.movement-row{flex-direction:column;align-items:stretch}.movement-row .expense-side{gap:8px}}
 
 nav{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px}nav button{flex:0 0 100px;min-width:100px;max-width:100px;padding:5px 4px;box-sizing:border-box}nav span{white-space:nowrap;font-size:10px;line-height:16px}
+
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}header #theme-toggle{width:76px;font-size:13px;font-weight:700}header>div:first-child{min-width:0}header h1{overflow-wrap:anywhere}
+html[data-theme="dark"] body{background:#101827;color:#edf2f8}
+html[data-theme="dark"] :is(.stats div,.row,.month,.chart-card,.home-block,.empty,.card-modal-box,nav,.category-group){background:#1e293b;color:#edf2f8}
+html[data-theme="dark"] :is(.mini div,.home-subtotals span,.category-items .row,.modal-section,.modal-close){background:#29364b;color:#edf2f8}
+html[data-theme="dark"] :is(.hint,.stats small,.row small,.mini small,.home-subtotals small,.card-main-lines small,.modal-section span,.card-modal-head small,.future-card small,.future-card span,.legend,.category-total small,.category-grand-total small,.category-empty,.form p){color:#b8c5d8}
+html[data-theme="dark"] :is(.card-main-lines strong,.form label){color:#edf2f8}
+html[data-theme="dark"] :is(.form input,.form select,.category-add input,.monthnav button,.secondary,.actions button,.actions .button,#historyRange,.drive-actions button){background:#29364b;color:#edf2f8;border-color:#53647c}
+html[data-theme="dark"] :is(.future-card,.total-row){background:#1e293b;border-color:#53647c}
+html[data-theme="dark"] :is(.category-items,nav){border-color:#53647c}
+html[data-theme="dark"] :is(.heading button,.movement-date){color:#93b9ff}
+html[data-theme="dark"] .actions .danger{color:#ffb4b4;border-color:#b36a74}
+html[data-theme="dark"] nav button{color:#b8c5d8}html[data-theme="dark"] nav button.active{color:#fff}
+html[data-theme="dark"] .history-month.current-month{border-color:#93b9ff}html[data-theme="dark"] .current-badge{background:#93b9ff;color:#101827}
+@media(max-width:360px){header{padding:14px 12px;gap:8px}header h1{font-size:18px}header small{font-size:10px}}
