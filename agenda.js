@@ -68,7 +68,7 @@
     if(action==='create'){draft=structuredClone(book);draft.months[selected]=M.emptyMonth();dirty=true;render();return;}
     if(action==='remove'||action==='remove-field'){if(!confirm('¿Eliminar esta anotación de la planilla de este mes?'))return;}
     const ok=mutate(m=>{
-      if(action==='add'){m[group].push(group==='order'?{id:M.uid(),label:'Nuevo concepto',paid:false}:M.block('Nuevo concepto',group==='cards'?['Vence','Cierra','Total','Mío','Ajeno','Mes anterior']:['Importe','Notas']));return;}
+      if(action==='add'){m[group].push(group==='order'?{id:M.uid(),label:'Nuevo concepto',paid:false}:group==='receivables'?M.receivable('Nueva persona / ingreso'):M.block('Nuevo concepto',group==='cards'?['Vence','Cierra','Total','Mío','Ajeno','Mes anterior']:['Importe','Notas']));return;}
       const index=m[group].findIndex(x=>x.id===b.dataset.id);if(index<0)return;
       if(action==='remove')m[group].splice(index,1);
       if(action==='up'||action==='down'){const other=index+(action==='up'?-1:1);if(other>=0&&other<m[group].length)[m[group][index],m[group][other]]=[m[group][other],m[group][index]];}

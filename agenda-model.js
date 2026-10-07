@@ -3,9 +3,10 @@
   const uid = () => crypto.randomUUID();
   const field = (label, value = '') => ({id: uid(), label, value: String(value)});
   const block = (label, fields) => ({id: uid(), label, fields: fields.map(x => typeof x === 'string' ? field(x) : field(x[0], x[1]))});
+  const receivable = label => ({id:uid(),label,fields:[{...field(''),amountSide:'label',paid:false}]});
   function emptyMonth() {
     return {order: ['Tarjeta 1', 'Tarjeta 2', 'Servicios'].map(label => ({id:uid(),label,paid:false})),
-      receivables: [block('Persona', ['Importe', 'Notas'])],
+      receivables: [receivable('Persona')],
       debts: [block('Luz',['Importe','Notas']),block('Gas',['Importe','Notas']),block('Agua',['Importe','Notas']),block('Movistar',['Hogar','Celular','Mes anterior hogar','Mes anterior celular']),block('Gimnasio',['Importe']),block('Auto',['Importe','Notas']),block('Préstamos',['Importe','Notas'])],
       cards: [block('Tarjeta / crédito',['Vence','Cierra','Total','Mío','Ajeno','Mes anterior'])]};
   }
@@ -41,5 +42,5 @@
   function validBook(b) {
     return b && b.version===1 && b.months && typeof b.months==='object' && !Array.isArray(b.months) && Object.keys(b.months).length<=500 && Object.entries(b.months).every(([key,m])=>/^\d{4}-(0[1-9]|1[0-2])$/.test(key)&&validMonth(m));
   }
-  window.PaymentAgendaModel = {uid,field,block,emptyMonth,nextMonth,validMonth,validBook,amountInLabel};
+  window.PaymentAgendaModel = {uid,field,block,receivable,emptyMonth,nextMonth,validMonth,validBook,amountInLabel};
 })();
