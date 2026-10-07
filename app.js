@@ -226,7 +226,7 @@ $("addCategory").onclick=()=>{let n=$("newCategory").value.trim();if(!n)return;i
 window.renameCategory=i=>{let n=prompt("Nuevo nombre:",s.onePaymentCategories[i]);if(n&&n.trim()){let old=s.onePaymentCategories[i],nn=n.trim();if(s.onePaymentCategories.some((c,j)=>j!==i&&c.toLowerCase()===nn.toLowerCase()))return alert("Esa categoría ya existe.");s.onePaymentCategories[i]=nn;s.onePayments.forEach(e=>{if(e.category===old)e.category=nn});save();render()}};
 window.deleteCategory=i=>{let c=s.onePaymentCategories[i];if(confirm(`¿Eliminar la categoría "${c}"? Los consumos históricos conservarán su categoría.`)){s.onePaymentCategories.splice(i,1);save();render()}};
 function backupBlob(){
-  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:s};
+  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:window.PaymentAgenda?.exportData()}};
   return new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
 }
 function downloadBackup(){
@@ -291,7 +291,7 @@ render();
 
 // Navigation fallback: forms also open through normal URL query links, so Android/PWA browsers do not depend on click handlers.
 
-window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:structuredClone(s)})});
+window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:window.PaymentAgenda?.exportData()}tructuredClone(s)})});
 
 if (window.isSecureContext && "serviceWorker" in navigator) {
   navigator.serviceWorker.register(new URL("sw.js", document.baseURI), {scope: new URL("./", document.baseURI).pathname, updateViaCache: "none"}).then(registration => registration.update()).catch(() => {});
