@@ -9,6 +9,26 @@
       debts: [block('Luz',['Importe','Notas']),block('Gas',['Importe','Notas']),block('Agua',['Importe','Notas']),block('Movistar',['Hogar','Celular','Mes anterior hogar','Mes anterior celular']),block('Gimnasio',['Importe']),block('Auto',['Importe','Notas']),block('Préstamos',['Importe','Notas'])],
       cards: [block('Tarjeta / crédito',['Vence','Cierra','Total','Mío','Ajeno','Mes anterior'])]};
   }
+  function nextMonth(previous) {
+    const result = structuredClone(previous);
+    const name = x => x.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+    result.order.forEach(item => item.paid = false);
+    for (const group of ['receivables','debts','cards']) {
+      result[group].forEach((item,index) => {
+        const old = previous[group][index];
+        item.fields.forEach(f => {
+          const label = name(f.label);
+          f.value = '';
+          if (label.startsWith('mes anterior')) {
+            const suffix = label.slice('mes anterior'.length).trim();
+            const source = old.fields.find(x => name(x.label) === (suffix || 'total')) || (!suffix && old.fields.find(x => name(x.label) === 'importe'));
+            f.value = source ? source.value : '';
+          }
+        });
+      });
+    }
+    return result;
+  }
   const text = x => typeof x === 'string' && x.length <= 2000;
   function validMonth(m) {
     if (!m || !['order','receivables','debts','cards'].every(k=>Array.isArray(m[k]) && m[k].length<=200)) return false;
@@ -18,5 +38,5 @@
   function validBook(b) {
     return b && b.version===1 && b.months && typeof b.months==='object' && !Array.isArray(b.months) && Object.keys(b.months).length<=500 && Object.entries(b.months).every(([key,m])=>/^\d{4}-(0[1-9]|1[0-2])$/.test(key)&&validMonth(m));
   }
-  window.PaymentAgendaModel = {uid,field,block,emptyMonth,validMonth,validBook};
+  window.PaymentAgendaModel = {uid,field,block,emptyMonth,nextMonth,validMonth,validBook};
 })();
