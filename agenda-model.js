@@ -18,7 +18,7 @@
         const old = previous[group][index];
         item.fields.forEach(f => {
           const label = name(f.label);
-          if(group==='debts' && amountInLabel(f)){f.label='';f.amountSide='label';}
+          if(['debts','receivables'].includes(group) && amountInLabel(f)){f.label='';f.amountSide='label';}
           f.value = '';
           if ('paid' in f) f.paid = false;
           if (label.startsWith('mes anterior')) {
