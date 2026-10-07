@@ -291,7 +291,7 @@ render();
 
 // Navigation fallback: forms also open through normal URL query links, so Android/PWA browsers do not depend on click handlers.
 
-window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:window.PaymentAgenda?.exportData()}tructuredClone(s)})});
+window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(s),paymentAgenda:window.PaymentAgenda?.exportData()}})});
 
 if (window.isSecureContext && "serviceWorker" in navigator) {
   navigator.serviceWorker.register(new URL("sw.js", document.baseURI), {scope: new URL("./", document.baseURI).pathname, updateViaCache: "none"}).then(registration => registration.update()).catch(() => {});
