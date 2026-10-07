@@ -214,7 +214,15 @@ $("openCardDetails").onclick=()=>{closeCardModal();go("cardDetail")};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeCardModal()});
 $("detailPrev").onclick=()=>{detailSelected=add(detailSelected,-1);renderCardDetail()};$("detailNext").onclick=()=>{detailSelected=add(detailSelected,1);renderCardDetail()};
 function populate(){ $("card").innerHTML=s.cards.map(c=>`<option>${esc(c.name)}</option>`).join(""); }
-function populateOne(){ $("oneCard").innerHTML=s.cards.map(c=>`<option>${esc(c.name)}</option>`).join(""); $("oneCategory").innerHTML=s.onePaymentCategories.map(c=>`<option>${esc(c)}</option>`).join(""); }
+function populateOneCategories(preferred=$("oneCategory").value){
+  const existing=editingOneId!==null?s.onePayments.find(e=>String(e.id)===String(editingOneId)):null;
+  const names=[...s.onePaymentCategories];
+  if(existing?.category&&!names.includes(existing.category))names.push(existing.category);
+  $("oneCategory").innerHTML=names.map(c=>`<option>${esc(c)}</option>`).join("");
+  if(names.includes(preferred))$("oneCategory").value=preferred;
+}
+function populateOne(){ $("oneCard").innerHTML=s.cards.map(c=>`<option>${esc(c.name)}</option>`).join("");populateOneCategories(); }
+
 function setFormMode(editing){$("addScreen").querySelector("h2").textContent=editing?"Editar gasto":"Agregar gasto";$("form").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar gasto";}
 function setOneMode(editing){$("oneAddScreen").querySelector("h2").textContent=editing?"Editar consumo":"Agregar consumo a un pago";$("oneForm").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar consumo";}
 $("add").onclick=null;
@@ -238,10 +246,22 @@ window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e
 window.deleteOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.onePayments=s.onePayments.filter(x=>String(x.id)!==String(id));save();render()}};
 $("newCard").onclick=()=>{let n=prompt("Nombre de la nueva tarjeta:");if(n&&n.trim()&&!s.cards.some(c=>c.name.toLowerCase()===n.trim().toLowerCase())){s.cards.push({name:n.trim(),color:"#4b5563"});save();render()}else if(n)alert("Esa tarjeta ya existe.")};
 window.renameCard=i=>{let n=prompt("Nuevo nombre:",s.cards[i].name);if(n&&n.trim()){let old=s.cards[i].name,newName=n.trim();s.cards[i].name=newName;s.expenses.forEach(e=>{if(e.card===old)e.card=newName});s.onePayments.forEach(e=>{if(e.card===old)e.card=newName});save();render()}};
-$("manageCategories").onclick=()=>go("categories");
-$("addCategory").onclick=()=>{let n=$("newCategory").value.trim();if(!n)return;if(s.onePaymentCategories.some(c=>c.toLowerCase()===n.toLowerCase()))return alert("Esa categoría ya existe.");s.onePaymentCategories.push(n);$("newCategory").value="";save();render()};
-window.renameCategory=i=>{let n=prompt("Nuevo nombre:",s.onePaymentCategories[i]);if(n&&n.trim()){let old=s.onePaymentCategories[i],nn=n.trim();if(s.onePaymentCategories.some((c,j)=>j!==i&&c.toLowerCase()===nn.toLowerCase()))return alert("Esa categoría ya existe.");s.onePaymentCategories[i]=nn;s.onePayments.forEach(e=>{if(e.category===old)e.category=nn});save();render()}};
-window.deleteCategory=i=>{let c=s.onePaymentCategories[i];if(confirm(`¿Eliminar la categoría "${c}"? Los consumos históricos conservarán su categoría.`)){s.onePaymentCategories.splice(i,1);save();render()}};
+let categoriesReturn="onePayments";
+function openCategories(from){categoriesReturn=from;go("categories");}
+$("manageCategories").onclick=()=>openCategories("onePayments");
+$("manageFormCategories").onclick=()=>openCategories("oneAddScreen");
+$("categoriesBack").onclick=()=>{populateOneCategories();go(categoriesReturn);};
+function createCategory(value){
+  const name=canonicalCat(value);if(!name)return false;
+  if(s.onePaymentCategories.some(c=>c.toLocaleLowerCase()===name.toLocaleLowerCase())){alert("Esa categoría ya existe.");return false;}
+  s.onePaymentCategories.push(name);save();populateOneCategories(name);render();return true;
+}
+$("quickAddCategory").onclick=()=>{const name=prompt("Nombre de la nueva categoría:");if(name!==null)createCategory(name);};
+$("addCategory").onclick=()=>{if(createCategory($("newCategory").value))$("newCategory").value="";};
+$("newCategory").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();$("addCategory").click();}};
+window.renameCategory=i=>{let n=prompt("Nuevo nombre:",s.onePaymentCategories[i]);if(n&&n.trim()){let old=s.onePaymentCategories[i],nn=canonicalCat(n);if(s.onePaymentCategories.some((c,j)=>j!==i&&c.toLocaleLowerCase()===nn.toLocaleLowerCase()))return alert("Esa categoría ya existe.");const selectedCategory=$("oneCategory").value;s.onePaymentCategories[i]=nn;s.onePayments.forEach(e=>{if(e.category===old)e.category=nn});save();populateOneCategories(selectedCategory===old?nn:selectedCategory);render()}};
+window.deleteCategory=i=>{let c=s.onePaymentCategories[i];if(confirm(`¿Eliminar la categoría "${c}"? Los consumos históricos conservarán su categoría.`)){s.onePaymentCategories.splice(i,1);save();populateOneCategories();render()}};
+
 function backupBlob(){
   const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:window.PaymentAgenda?.exportData()}};
   return new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
