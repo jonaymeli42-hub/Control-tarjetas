@@ -54,3 +54,8 @@
 .category-grand-total small{display:block;color:#6b7280;font-weight:400;margin-top:3px;font-size:11px}
 @media(max-width:560px){.category-total small{white-space:normal;text-align:right;max-width:150px}.category-grand-total{align-items:flex-start}.card-main-total{font-size:13px}}
 .history-month{transition:border .15s,box-shadow .15s}.history-month.current-month{border:2px solid #111827;box-shadow:0 2px 12px #0002}.current-badge{display:inline-block;background:#111827;color:#fff;border-radius:999px;padding:3px 7px;font-size:10px;letter-spacing:.4px;margin-left:6px;vertical-align:middle}
+
+/* Movimientos: navegación de una fila y registros completos. */
+nav{overflow-x:auto;justify-content:flex-start;gap:4px}nav button{flex:1 0 70px;min-width:70px;white-space:nowrap}
+.movement-info{display:flex;flex-direction:column;gap:5px;min-width:0;overflow-wrap:anywhere}.movement-date{font-weight:700;color:#2563eb}.movement-row{padding:16px;gap:16px}.movement-row .expense-side>b{font-size:20px}
+@media(max-width:560px){.movement-row{flex-direction:column;align-items:stretch}.movement-row .expense-side{gap:8px}}

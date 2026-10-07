@@ -87,9 +87,17 @@ function render(){
       <span class="card-main-total">${money(quota+one)}</span>
     </button>`;
   }).join("")||'<div class="empty">No hay tarjetas.</div>';
-  renderSummary(); renderPending(); renderFinished(); renderCards(); renderOnePayments(); renderHistory(); renderCategories();
+  renderSummary(); renderPending(); renderFinished(); renderCards(); renderOnePayments(); renderHistory(); renderCategories(); renderMovements();
   if(detailCard)renderCardDetail();
   document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",document.getElementById(b.dataset.go)?.classList.contains("active")));
+}
+function renderMovements(){
+  const rows=[
+    ...s.onePayments.map(e=>({e,kind:"one",date:e.date||e.month,label:e.date?dateBR(e.date):monthName(parseMonth(e.month)),amount:Number(e.amount)})),
+    ...s.expenses.map(e=>({e,kind:"quota",date:e.start,label:monthName(parseMonth(e.start)),amount:Number(e.monthly)*Number(e.installments)}))
+  ].sort((a,b)=>b.date.localeCompare(a.date)||String(b.e.id).localeCompare(String(a.e.id)));
+  $("movementsCount").textContent=`${rows.length} movimiento${rows.length===1?"":"s"} · Más recientes primero`;
+  $("movementsList").innerHTML=rows.map(({e,kind,label,amount})=>`<article class="row expense-row movement-row"><div class="movement-info"><small class="movement-date">${esc(label)}</small><b>${esc(e.description)}</b><small>${esc(e.card)} · ${esc(e.responsible||"Mío")}</small><small>${kind==="one"?`1 pago · ${esc(e.category||"Sin categoría")}`:`${Number(e.installments)} cuotas de ${money(e.monthly)} · Mes de inicio`}</small></div><div class="expense-side"><b>${money(amount)}</b>${kind==="quota"?'<small>Importe total en cuotas</small>':''}<span class="actions"><a class="button" href="?screen=${kind==="one"?"oneAddScreen":"addScreen"}&${kind==="one"?"editOne":"editExpense"}=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="${kind==="one"?"delete-one":"delete-expense"}" data-id="${esc(String(e.id))}">Eliminar</button></span></div></article>`).join("")||'<div class="empty">Todavía no hay movimientos registrados.</div>';
 }
 function renderSummary(){
   let dates=[];for(let i=0;i<18;i++)dates.push(add(selected,i));
@@ -271,6 +279,7 @@ if(requestedScreen==="addScreen"){
     else { setFormMode(false); $("start").value=ym(selected); go("addScreen"); }
   } else { setFormMode(false); $("start").value=ym(selected); go("addScreen"); }
 }
+if(requestedScreen==="movements")go("movements");
 if(requestedScreen==="oneAddScreen"){
   if(editOneParam!==null){
     const e=s.onePayments.find(x=>String(x.id)===String(editOneParam));
