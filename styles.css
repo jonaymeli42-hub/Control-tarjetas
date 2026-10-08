@@ -117,3 +117,5 @@ header #open-payment-agenda{width:64px;font-size:12px;font-weight:700}.header-ac
 .app-guide{margin:16px 0;padding:16px;border:1px solid currentColor;border-radius:16px}.app-guide summary{cursor:pointer;font-weight:700;min-height:32px}.app-guide-text{line-height:1.6}.app-guide-text h3,.app-guide-text h4{margin-top:24px}.app-guide-text p{margin:12px 0}
 
 header #backup{display:inline-flex;align-items:center;justify-content:center}header #backup svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+.agenda-field-detail{display:block;width:100%;margin:12px 0 6px;overflow-wrap:anywhere}.agenda-read p.agenda-field-detail{font-size:14px;margin-bottom:4px}
