@@ -26,8 +26,12 @@
   function fieldPayment(group,item,f){return remainingField(group,item,f)?paidButton(group,item,f):'';}
   function dueDateRow(group,item){
     if(group!=='debts')return '';
-    const value=item.dueDate||'',display=value?value.split('-').reverse().join('/'):'—';
-    return draft?`<label class="agenda-due-date">Fecha de vencimiento<input type="date" aria-label="Vencimiento de ${escape(item.label)}" data-group="${group}" data-id="${item.id}" data-property="dueDate" value="${escape(value)}"></label>`:`<p class="agenda-due-date">Vencimiento: <strong>${escape(display)}</strong></p>`;
+    const split=/movistar/i.test(item.label)||['hogar','celular'].every(name=>item.fields.some(f=>f.label.trim().toLowerCase()===name));
+    const dates=split?[['homeDueDate','Hogar',item.homeDueDate??item.dueDate??''],['cellDueDate','Celular',item.cellDueDate||'']]:[['dueDate','',item.dueDate||'']];
+    return dates.map(([property,name,value])=>{
+      const display=value?value.split('-').reverse().join('/'):'—';
+      return draft?`<label class="agenda-due-date">Fecha de vencimiento${name?' · '+name:''}<input type="date" aria-label="Vencimiento de ${escape(item.label)}${name?' · '+name:''}" data-group="${group}" data-id="${item.id}" data-property="${property}" value="${escape(value)}"></label>`:`<p class="agenda-due-date">Vencimiento${name?' · '+name:''}: <strong>${escape(display)}</strong></p>`;
+    }).join('');
   }
   function blocks(group,items){
     if(!draft)return items.map(item=>`<article class="agenda-block agenda-read"><div class="agenda-payment-heading"><h4>${escape(item.label)}</h4>${group==='cards'?paidButton(group,item):''}</div>${dueDateRow(group,item)}<dl>${item.fields.map(f=>serviceAmount(group,item,f)?`${/hogar|celular/i.test(f.label)?`<small>${escape(f.label)}</small>`:''}${amountRow(group,item,f)}`:`<div><dt>${escape(f.label)}</dt><dd class="agenda-value-payment"><span>${f.value?escape(f.value):'—'}</span>${fieldPayment(group,item,f)}</dd></div>`).join('')}</dl></article>`).join('');
