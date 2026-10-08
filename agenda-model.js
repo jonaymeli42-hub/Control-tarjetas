@@ -38,6 +38,32 @@
     return result;
   }
   const amountInLabel=f=>f.amountSide==='label'||/^\s*\$?\s*\d[\d.,\s]*$/.test(f.label)||f.label.trim()===''||f.label==='Nuevo campo';
+  function amountCents(value){
+    let text=String(value??'').trim().toLowerCase().replace(/^(?:ars|\$)\s*/,'').replace(/\s/g,'');
+    if(!text)return 0;
+    const thousands=text.endsWith('mil');if(thousands)text=text.slice(0,-3);
+    if(!/^-?\d[\d.,]*$/.test(text))return null;
+    if(text.includes(',')&&text.includes('.')){const decimal=text.lastIndexOf(',')>text.lastIndexOf('.')?',':'.';text=text.replace(decimal===','?/\./g:/,/g,'').replace(decimal,'.');}
+    else if(text.includes(',')){text=/^-?\d{1,3}(,\d{3})+$/.test(text)?text.replace(/,/g,''):text.replace(',','.');}
+    else if(/^-?\d{1,3}(\.\d{3})+$/.test(text))text=text.replace(/\./g,'');
+    const number=Number(text);return Number.isFinite(number)?Math.round(number*(thousands?1000:1)*100):null;
+  }
+  function ownTotal(month){
+    if(!month)return {amount:0,unreadable:0};
+    const name=x=>String(x).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+    let cents=0,unreadable=0;
+    const include=value=>{const parsed=amountCents(value);if(parsed===null)unreadable++;else cents+=parsed;};
+    for(const item of month.debts){
+      if(/prestamos?\s+(?:ezequiel|exe|eze)\b/.test(name(item.label)))continue;
+      for(const f of item.fields){
+        if(f.label==='Nuevo campo'&&!f.value.trim())continue;
+        if(/^(?:notas?|cuotas?|vence|vencimiento|fecha|cierra|cierre|mes anterior|ajeno)\b/.test(name(f.label)))continue;
+        include(amountInLabel(f)?f.label:f.value);
+      }
+    }
+    for(const item of month.cards){const field=item.fields.find(f=>name(f.label)==='mio');if(field)include(field.value);}
+    return {amount:cents/100,unreadable};
+  }
   const validDate=x=>{if(x==='')return true;if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x))return false;const d=new Date(x+'T12:00:00Z');return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===x;};
   const text = x => typeof x === 'string' && x.length <= 2000;
   function validMonth(m) {
@@ -48,5 +74,5 @@
   function validBook(b) {
     return b && b.version===1 && b.months && typeof b.months==='object' && !Array.isArray(b.months) && Object.keys(b.months).length<=500 && Object.entries(b.months).every(([key,m])=>/^\d{4}-(0[1-9]|1[0-2])$/.test(key)&&validMonth(m));
   }
-  window.PaymentAgendaModel = {uid,field,block,receivable,emptyMonth,nextMonth,validMonth,validBook,amountInLabel};
+  window.PaymentAgendaModel = {uid,field,block,receivable,emptyMonth,nextMonth,validMonth,validBook,amountInLabel,amountCents,ownTotal};
 })();
