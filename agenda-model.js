@@ -27,7 +27,9 @@
           if ('dueDate' in f) f.dueDate='';
           if (label.startsWith('mes anterior')) {
             const suffix = label.slice('mes anterior'.length).trim();
-            const source = old.fields.find(x => name(x.label) === (suffix || 'total')) || (!suffix && old.fields.find(x => name(x.label) === 'importe'));
+            const source = group==='cards'
+              ? old.fields.find(x => name(x.label) === 'mio')
+              : old.fields.find(x => name(x.label) === (suffix || 'total')) || (!suffix && old.fields.find(x => name(x.label) === 'importe'));
             f.value = source ? source.value : '';
           }
         });
