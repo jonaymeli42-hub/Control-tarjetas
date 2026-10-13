@@ -19,7 +19,7 @@
     const isPayment=f=>!/^(notas?|cuotas?|vence|vencimiento|fecha|cierra|cierre|mes anterior|ajeno)\b/.test(name(f.label));
     for(const item of month.debts){
       const loan=/prestamos?/.test(name(item.label));
-      const fields=item.fields.filter(f=>(isPayment(f)||(loan&&/^cuotas?\b/.test(name(f.label))&&String(f.value).trim()!==''&&amountCents(f.value)!==null))&&amountOwner(item,f)==='Mío');
+      const fields=item.fields.filter(f=>(isPayment(f)||(loan&&/^(cuotas?|ajeno)\b/.test(name(f.label))&&String(f.value).trim()!==''&&amountCents(f.value)!==null))&&(loan||amountOwner(item,f)==='Mío'));
       if(!fields.length)continue;
       const split=/movistar/i.test(item.label)||['hogar','celular'].every(label=>item.fields.some(f=>name(f.label)===label));
       if(split){
