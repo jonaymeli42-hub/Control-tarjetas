@@ -71,6 +71,7 @@ function splitTotals(items,field){return items.reduce((t,e)=>{const value=Number
 const remain=e=>{let now=new Date();now.setDate(1);let st=parseMonth(e.start),en=endMonth(e);if(idx(now)<idx(st))return Number(e.installments);if(idx(now)>idx(en))return 0;return Number(e.installments)-(idx(now)-idx(st));};
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const jsarg=x=>JSON.stringify(x);
+function agendaBackup(){try{const value=JSON.parse(localStorage.getItem('control-tarjetas-agenda-v1'));return window.PaymentAgendaModel?.validBook(value)?value:undefined;}catch{return undefined;}}
 function save(){localStorage.setItem(KEY,JSON.stringify(s));window.DriveBackup?.changed();}
 function quotaTotals(m){const a=s.expenses.filter(e=>active(e,m));return {a,...splitTotals(a,'monthly')};}
 function oneTotal(m){return oneTotals(m).total;}
@@ -151,8 +152,9 @@ function renderFinished(){
 }
 function renderCards(){
   $("cardsMonth").textContent=monthName(selected);
-  $("cardsList").innerHTML=s.cards.map((c,i)=>{const paid=Array.isArray(c.paidMonths)&&c.paidMonths.includes(ym(selected));return `<div class="row card-payment-row ${paid?'is-paid':''}"><span><i class="dot" style="background:${esc(c.color)}"></i>${esc(c.name)}</span><span class="actions"><button class="card-paid-toggle" aria-pressed="${paid}" aria-label="${esc(c.name)}: ${paid?'pagado, quitar marca':'marcar pagado'} en ${esc(monthName(selected))}" onclick="toggleCardPaid(${i})">${paid?'✓ Pagado':'Marcar pagado'}</button><button onclick="openCard('${esc(c.name).replace(/'/g,"\\'")}')">Ver</button><button onclick="renameCard(${i})">Editar</button></span></div>`;}).join("");
+  $("cardsList").innerHTML=s.cards.map((c,i)=>{const paid=Array.isArray(c.paidMonths)&&c.paidMonths.includes(ym(selected));return `<div class="row card-payment-row ${paid?'is-paid':''}"><span class="card-payment-name"><i class="dot" style="background:${esc(c.color)}"></i><span>${esc(c.name)}</span></span><div class="card-compact-actions"><button type="button" class="card-paid-toggle" aria-pressed="${paid}" aria-label="${esc(c.name)}: ${paid?'pagado, quitar marca':'marcar pagado'} en ${esc(monthName(selected))}" onclick="toggleCardPaid(${i})"><span aria-hidden="true">${paid?'✓':''}</span></button><details class="card-options"><summary aria-label="Opciones de ${esc(c.name)}">⋮</summary><div class="card-options-menu"><button type="button" onclick="this.closest('details').open=false;openCard('${esc(c.name).replace(/'/g,"\\'")}')">Ver</button><button type="button" onclick="this.closest('details').open=false;renameCard(${i})">Editar</button></div></details></div></div>`;}).join("");
 }
+
 window.toggleCardPaid=i=>{const card=s.cards[i];if(!card)return;const month=ym(selected);card.paidMonths=Array.isArray(card.paidMonths)?card.paidMonths:[];card.paidMonths=card.paidMonths.includes(month)?card.paidMonths.filter(value=>value!==month):[...card.paidMonths,month];save();renderCards();};
 window.changeCardsMonth=delta=>{selected=add(selected,delta);render();};
 
@@ -269,7 +271,7 @@ window.renameCategory=i=>{let n=prompt("Nuevo nombre:",s.onePaymentCategories[i]
 window.deleteCategory=i=>{let c=s.onePaymentCategories[i];if(confirm(`¿Eliminar la categoría "${c}"? Los consumos históricos conservarán su categoría.`)){s.onePaymentCategories.splice(i,1);save();populateOneCategories();render()}};
 
 function backupBlob(){
-  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:window.PaymentAgenda?.exportData()}};
+  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:agendaBackup()}};
   return new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
 }
 function downloadBackup(){
@@ -334,7 +336,7 @@ render();
 
 // Navigation fallback: forms also open through normal URL query links, so Android/PWA browsers do not depend on click handlers.
 
-window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(s),paymentAgenda:window.PaymentAgenda?.exportData()}})});
+window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(s),paymentAgenda:agendaBackup()}})});
 
 if (window.isSecureContext && "serviceWorker" in navigator) {
   navigator.serviceWorker.register(new URL("sw.js", document.baseURI), {scope: new URL("./", document.baseURI).pathname, updateViaCache: "none"}).then(registration => registration.update()).catch(() => {});
