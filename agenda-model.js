@@ -46,6 +46,19 @@
     month.order=order;
     return month;
   }
+  function sortOrder(month,monthKey){
+    const year=Number(monthKey.slice(0,4)),monthNumber=Number(monthKey.slice(5,7));
+    const rank=value=>{
+      const text=String(value||'').trim();let y=year,m=monthNumber,d;
+      const iso=text.match(/^(\d{4})-(\d{2})-(\d{2})$/),short=text.match(/^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2}|\d{4}))?$/);
+      if(iso){y=Number(iso[1]);m=Number(iso[2]);d=Number(iso[3]);}
+      else if(short){d=Number(short[1]);m=Number(short[2]);if(short[3])y=short[3].length===2?2000+Number(short[3]):Number(short[3]);}
+      else if(/^\d{1,2}$/.test(text))d=Number(text);else return Infinity;
+      const date=new Date(Date.UTC(y,m-1,d));return date.getUTCFullYear()===y&&date.getUTCMonth()===m-1&&date.getUTCDate()===d?date.getTime():Infinity;
+    };
+    month.order.sort((a,b)=>{const left=rank(a.orderDate),right=rank(b.orderDate);return left===right?0:left<right?-1:1;});
+    return month;
+  }
   function nextMonth(previous) {
     const result = structuredClone(previous);
     const name = x => x.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
@@ -110,5 +123,5 @@
   function validBook(b) {
     return b && b.version===1 && b.months && typeof b.months==='object' && !Array.isArray(b.months) && Object.keys(b.months).length<=500 && Object.entries(b.months).every(([key,m])=>/^\d{4}-(0[1-9]|1[0-2])$/.test(key)&&validMonth(m));
   }
-  window.PaymentAgendaModel = {syncOrder,uid,field,block,receivable,emptyMonth,nextMonth,validMonth,validBook,amountInLabel,amountCents,amountOwner,ownTotal};
+  window.PaymentAgendaModel = {sortOrder,syncOrder,uid,field,block,receivable,emptyMonth,nextMonth,validMonth,validBook,amountInLabel,amountCents,amountOwner,ownTotal};
 })();
