@@ -18,7 +18,8 @@
     const name=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
     const isPayment=f=>!/^(notas?|cuotas?|vence|vencimiento|fecha|cierra|cierre|mes anterior|ajeno)\b/.test(name(f.label));
     for(const item of month.debts){
-      const fields=item.fields.filter(f=>isPayment(f)&&amountOwner(item,f)==='Mío');
+      const loan=/prestamos?/.test(name(item.label));
+      const fields=item.fields.filter(f=>(isPayment(f)||(loan&&/^cuotas?\b/.test(name(f.label))&&String(f.value).trim()!==''&&amountCents(f.value)!==null))&&amountOwner(item,f)==='Mío');
       if(!fields.length)continue;
       const split=/movistar/i.test(item.label)||['hogar','celular'].every(label=>item.fields.some(f=>name(f.label)===label));
       if(split){
@@ -26,7 +27,7 @@
           const property=name(f.label)==='hogar'?'homeDueDate':'cellDueDate';
           add('debts:'+item.id+':'+f.id,item.label+' · '+f.label,item[property]??(property==='homeDueDate'?item.dueDate||'':''),f.paid,fieldAmount(f));
         }
-      }else if(/prestamos?/.test(name(item.label))){
+      }else if(loan){
         fields.forEach((f,index)=>add('debts:'+item.id+':'+f.id,item.label+(!amountInLabel(f)&&!/^(importe|total|monto)$/i.test(f.label.trim())?' · '+f.label:''),f.dueDate??(index===0?item.dueDate||'':''),f.paid,fieldAmount(f)));
       }else add('debts:'+item.id,item.label,item.dueDate||'',fields.every(f=>f.paid===true),sumAmounts(fields));
     }
