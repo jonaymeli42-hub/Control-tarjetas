@@ -149,7 +149,13 @@ function renderFinished(){
   let all=s.expenses.filter(e=>idx(endMonth(e))<idx(now)).sort((a,b)=>idx(endMonth(b))-idx(endMonth(a)));
   $("finishedList").innerHTML=all.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${esc(e.card)} · ${e.installments} cuotas · terminó ${monthName(endMonth(e))} · ${esc(purpose(e))}</small></span><span class="expense-side"><b>${money(Number(e.monthly))}/mes</b><span class="actions"><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">Todavía no hay gastos terminados.</div>';
 }
-function renderCards(){ $("cardsList").innerHTML=s.cards.map((c,i)=>`<div class="row"><span><i class="dot" style="background:${esc(c.color)}"></i>${esc(c.name)}</span><span class="actions"><button onclick="openCard('${esc(c.name).replace(/'/g,"\\'")}')">Ver</button><button onclick="renameCard(${i})">Editar</button></span></div>`).join(""); }
+function renderCards(){
+  $("cardsMonth").textContent=monthName(selected);
+  $("cardsList").innerHTML=s.cards.map((c,i)=>{const paid=Array.isArray(c.paidMonths)&&c.paidMonths.includes(ym(selected));return `<div class="row card-payment-row ${paid?'is-paid':''}"><span><i class="dot" style="background:${esc(c.color)}"></i>${esc(c.name)}</span><span class="actions"><button class="card-paid-toggle" aria-pressed="${paid}" aria-label="${esc(c.name)}: ${paid?'pagado, quitar marca':'marcar pagado'} en ${esc(monthName(selected))}" onclick="toggleCardPaid(${i})">${paid?'✓ Pagado':'Marcar pagado'}</button><button onclick="openCard('${esc(c.name).replace(/'/g,"\\'")}')">Ver</button><button onclick="renameCard(${i})">Editar</button></span></div>`;}).join("");
+}
+window.toggleCardPaid=i=>{const card=s.cards[i];if(!card)return;const month=ym(selected);card.paidMonths=Array.isArray(card.paidMonths)?card.paidMonths:[];card.paidMonths=card.paidMonths.includes(month)?card.paidMonths.filter(value=>value!==month):[...card.paidMonths,month];save();renderCards();};
+window.changeCardsMonth=delta=>{selected=add(selected,delta);render();};
+
 function renderCategories(){ $("categoriesList").innerHTML=s.onePaymentCategories.map((c,i)=>`<div class="row"><span>${esc(c)}</span><span class="actions"><button onclick="renameCategory(${i})">Editar</button><button class="danger" onclick="deleteCategory(${i})">Eliminar</button></span></div>`).join("")||'<div class="empty">No hay categorías.</div>'; }
 function renderHistory(){
   // Lista completa del período registrado: meses anteriores, actual y futuros.
