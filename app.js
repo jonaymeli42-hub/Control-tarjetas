@@ -1,5 +1,9 @@
+import {createPendingExpenseStore,SHARED_PENDING_KEY,pendingOperationId,validPendingExpenses} from './pending-expenses.js?v=shared-3';
+import {parseVoiceExpense} from './voice-expense-parser.js?v=1';
 import {installmentMonths,moveInstallments,preserveSchedule} from './installment-schedule.js?v=1';
 let editingId=null, editingOneId=null, detailCard=null;
+let pendingCardNoteId=null,pendingCardScreen=null;
+const pendingNotes=createPendingExpenseStore(localStorage,SHARED_PENDING_KEY);
 const KEY="tarjetas_app_v3";
 import { ENCRYPTED_SEED } from './data.js';
 async function decryptSeed(){
@@ -83,6 +87,7 @@ function futureQuotaTotal(m,predicate=()=>true){
   },0);
 }
 function render(){
+  refreshPendingNoteCount();
   $("month").textContent=monthName(selected);
   const q=quotaTotals(selected), ot=oneTotals(selected);
   $("total").textContent=money(q.total);
@@ -207,6 +212,7 @@ function remainFor(e,m){return installmentMonths(e).filter(month=>month>=ym(m)).
 function installmentLabel(e,m){const current=installmentMonths(e).indexOf(ym(m))+1;return `${Math.max(1,current)} de ${Number(e.installments)}`;}
 function resetToCurrentMonth(){const now=new Date();now.setDate(1);selected=new Date(now);oneSelected=new Date(now);detailSelected=new Date(now);}
 function go(id){
+  if(pendingCardNoteId&&id!==pendingCardScreen)clearPendingCardContext();
   if(id==="home"||id==="history") resetToCurrentMonth();
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");
   if(id==="cardDetail")renderCardDetail();
@@ -230,7 +236,33 @@ function populateOneCategories(preferred=$("oneCategory").value){
 }
 function populateOne(){ $("oneCard").innerHTML=s.cards.map(c=>`<option>${esc(c.name)}</option>`).join("");populateOneCategories(); }
 
-function setFormMode(editing){$("rescheduleExpense").hidden=!editing;$("addScreen").querySelector("h2").textContent=editing?"Editar gasto":"Agregar gasto";$("form").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar gasto";}
+
+function refreshPendingNoteCount(){try{document.querySelectorAll('[data-shared-note-count]').forEach(el=>el.textContent=String(pendingNotes.read().notes.length));}catch{}}
+function clearPendingCardContext(){pendingCardNoteId=null;pendingCardScreen=null;document.querySelectorAll('.pending-card-context').forEach(el=>el.remove());}
+function openPendingCardNote(noteId,screenId){
+ const n=pendingNotes.read().notes.find(n=>n.id===noteId);if(!n){alert('La nota ya no está pendiente. Revisá los movimientos o la lista de notas.');return;}
+ const recordId=pendingOperationId(n.id);
+ if([...s.expenses,...s.onePayments].some(e=>String(e.id)===recordId)){pendingNotes.remove(n.id);refreshPendingNoteCount();alert('Esta nota ya estaba registrada en Control Tarjetas. No se duplicó.');return;}
+ const cats=s.onePaymentCategories.map(name=>({id:name,name})),draft=parseVoiceExpense(n.text,cats,n.date);
+ const one=screenId==='oneAddScreen',target=one?'oneAddScreen':'addScreen';
+ if(one){editingOneId=null;$("oneForm").reset();populateOne();setOneMode(false);$("oneDesc").value=draft.description;$("oneAmount").value=draft.cents===null?'':(draft.cents/100).toFixed(2);$("oneDate").type='date';$("oneDate").value=draft.date;$("oneMonth").value=draft.date.slice(0,7);$("oneCategory").value=draft.categoryId;}
+ else{editingId=null;$("form").reset();populate();setFormMode(false);$("desc").value=draft.description;$("start").value=draft.date.slice(0,7);const count=n.text.match(/\b(\d{1,3})\s*cuotas?\b/i);$("installments").value=count&&Number(count[1])>=1&&Number(count[1])<=240?count[1]:'';const perMonth=n.text.match(/cuotas?\s+de\s+([\d.,]+)/i);const parsed=perMonth?parseVoiceExpense(perMonth[1],[],n.date):null;$("amount").value=parsed?.cents?(parsed.cents/100).toFixed(2):'';}
+ const card=one?$("oneCard"):$("card");if(!card.querySelector('option[value=""]')){const empty=document.createElement('option');empty.value='';empty.textContent='Elegir tarjeta';card.prepend(empty);}card.value='';card.required=true;
+ const form=one?$("oneForm"):$("form"),context=document.createElement('aside');context.className='pending-card-context';const original=document.createElement('p');original.textContent=n.text;const stamp=document.createElement('small');stamp.textContent='Nota del '+new Date(n.createdAt).toLocaleString('es-AR');const help=document.createElement('p');help.textContent=one?'Revisá la tarjeta, el importe y el mes del resumen antes de guardar.':'Completá la tarjeta, la cantidad de cuotas, el importe de cada cuota y el mes del primer resumen. No se divide el total automáticamente.';context.append(stamp,original,help);form.before(context);
+ pendingCardNoteId=n.id;pendingCardScreen=target;go(target);window.scrollTo(0,0);
+}
+function savePendingCardNote(kind,data){
+ const noteId=pendingCardNoteId,recordId=pendingOperationId(noteId);
+ try{
+  const stored=JSON.parse(localStorage.getItem(KEY)||'null');if(stored&&[...stored.expenses,...stored.onePayments].some(e=>String(e.id)===recordId)){pendingNotes.remove(noteId);clearPendingCardContext();alert('La nota ya se registró. No se duplicó el gasto.');return false;}
+  if(!pendingNotes.read().notes.some(n=>n.id===noteId)){alert('Esta nota ya no está pendiente. Revisá las apps antes de volver a registrarla.');return false;}
+  const before=structuredClone(s);try{s[kind].push({id:recordId,createdAt:new Date().toISOString(),...data});save();}catch(error){s=before;throw error;}
+  clearPendingCardContext();try{pendingNotes.remove(noteId);window.DriveBackup?.changed();}catch{alert('El gasto se guardó. La nota sigue en la lista; al abrirla de nuevo no se duplicará.');}refreshPendingNoteCount();return true;
+ }catch{alert('No pude confirmar el guardado. La nota sigue pendiente para reintentar.');return false;}
+}
+window.addEventListener('storage',event=>{if(event.key===SHARED_PENDING_KEY)refreshPendingNoteCount();});
+
+function setFormMode(editing){clearPendingCardContext();$("rescheduleExpense").hidden=!editing;$("addScreen").querySelector("h2").textContent=editing?"Editar gasto":"Agregar gasto";$("form").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar gasto";}
 
 $("rescheduleExpense").onclick=()=>{
  const expense=s.expenses.find(e=>String(e.id)===editingId);if(!expense)return;
@@ -259,7 +291,7 @@ function openInstallmentReschedule(expenseId,number){
  $("rescheduleCancel").onclick=()=>dialog.close();dialog.showModal();
 }
 
-function setOneMode(editing){$("oneAddScreen").querySelector("h2").textContent=editing?"Editar consumo":"Agregar consumo a un pago";$("oneForm").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar consumo";}
+function setOneMode(editing){clearPendingCardContext();$("oneAddScreen").querySelector("h2").textContent=editing?"Editar consumo":"Agregar consumo a un pago";$("oneForm").querySelector("button[type=submit]").textContent=editing?"Guardar cambios":"Guardar consumo";}
 $("add").onclick=null;
 function addOneForm(){editingOneId=null;$("oneForm").reset();$("oneDate").type="date";populateOne();$("oneDate").value=new Date().toISOString().slice(0,10);$("oneMonth").value=ym(selected);$("oneResponsible").value="Mío";setOneMode(false);go("oneAddScreen");}
 $("addOne").onclick=null;$("addOne2").onclick=addOneForm;
@@ -276,8 +308,8 @@ document.addEventListener("click", function(ev){
   if(a==="close-card-modal") return closeCardModal();
 });
 
-$("form").onsubmit=e=>{e.preventDefault();let d=$("desc").value.trim(),responsible=$("expenseResponsible").value;if(!d||!$("card").value||!(+$("amount").value>0)||!(+$("installments").value>0)||!$("start").value)return alert("Completá todos los datos.");let data={description:d,card:$("card").value,monthly:+$("amount").value,installments:+$("installments").value,start:$("start").value,responsible:purpose({responsible})};if(editingId!==null){let i=s.expenses.findIndex(x=>String(x.id)===String(editingId));if(i>=0)s.expenses[i]=preserveSchedule(s.expenses[i],data)}else s.expenses.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingId=null;save();go("home")};
-$("oneForm").onsubmit=e=>{e.preventDefault();const existing=editingOneId!==null?s.onePayments.find(x=>String(x.id)===String(editingOneId)):null;const enteredDate=$("oneDate").value;const unchangedDate=existing && enteredDate===(consumptionDate(existing.date)||String(existing.date??''));const savedDate=unchangedDate?existing.date:consumptionDate(enteredDate);if(!savedDate)return alert("Revisá la fecha del consumo.");let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:savedDate,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
+$("form").onsubmit=e=>{e.preventDefault();let d=$("desc").value.trim(),responsible=$("expenseResponsible").value;if(!d||!$("card").value||!(+$("amount").value>0)||!(+$("installments").value>0)||!$("start").value)return alert("Completá todos los datos.");let data={description:d,card:$("card").value,monthly:+$("amount").value,installments:+$("installments").value,start:$("start").value,responsible:purpose({responsible})};if(pendingCardNoteId){if(savePendingCardNote("expenses",data))go("home");return;}if(editingId!==null){let i=s.expenses.findIndex(x=>String(x.id)===String(editingId));if(i>=0)s.expenses[i]=preserveSchedule(s.expenses[i],data)}else s.expenses.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingId=null;save();go("home")};
+$("oneForm").onsubmit=e=>{e.preventDefault();const existing=editingOneId!==null?s.onePayments.find(x=>String(x.id)===String(editingOneId)):null;const enteredDate=$("oneDate").value;const unchangedDate=existing && enteredDate===(consumptionDate(existing.date)||String(existing.date??''));const savedDate=unchangedDate?existing.date:consumptionDate(enteredDate);if(!savedDate)return alert("Revisá la fecha del consumo.");let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:savedDate,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(pendingCardNoteId){if(savePendingCardNote("onePayments",data)){oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments");}return;}if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
 window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e)return;editingOneId=String(id);populateOne();$("oneDesc").value=e.description;$("oneAmount").value=e.amount;fillConsumptionDate(e);$("oneCard").value=e.card;$("oneCategory").value=e.category;$("oneMonth").value=e.month;$("oneResponsible").value=purpose(e);setOneMode(true);go("oneAddScreen")};
 window.deleteOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.onePayments=s.onePayments.filter(x=>String(x.id)!==String(id));save();render()}};
 $("newCard").onclick=()=>{let n=prompt("Nombre de la nueva tarjeta:");if(n&&n.trim()&&!s.cards.some(c=>c.name.toLowerCase()===n.trim().toLowerCase())){s.cards.push({name:n.trim(),color:"#4b5563"});save();render()}else if(n)alert("Esa tarjeta ya existe.")};
@@ -299,7 +331,7 @@ window.renameCategory=i=>{let n=prompt("Nuevo nombre:",s.onePaymentCategories[i]
 window.deleteCategory=i=>{let c=s.onePaymentCategories[i];if(confirm(`¿Eliminar la categoría "${c}"? Los consumos históricos conservarán su categoría.`)){s.onePaymentCategories.splice(i,1);save();populateOneCategories();render()}};
 
 function backupBlob(){
-  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:agendaBackup()}};
+  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:agendaBackup(),pendingExpenses:pendingNotes.read()}};
   return new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
 }
 function downloadBackup(){
@@ -317,7 +349,7 @@ async function shareBackup(){
 }
 function validBackup(obj){
   const d=obj?.data||obj;
-  return d && Array.isArray(d.expenses) && Array.isArray(d.cards) && Array.isArray(d.onePayments) && Array.isArray(d.onePaymentCategories);
+  return d && (d.pendingExpenses===undefined||validPendingExpenses(d.pendingExpenses)) && Array.isArray(d.expenses) && Array.isArray(d.cards) && Array.isArray(d.onePayments) && Array.isArray(d.onePaymentCategories);
 }
 $("backup").onclick=()=>go("backupScreen");
 $("downloadBackup").onclick=downloadBackup;
@@ -332,7 +364,7 @@ $("backupFile").onchange=ev=>{
       if(!validBackup(obj)) throw new Error("Formato inválido");
       if(!confirm("Esto reemplazará los datos actuales de la app por los del respaldo. ¿Querés continuar?")) return;
       s={expenses:d.expenses,cards:d.cards,onePayments:d.onePayments,onePaymentCategories:d.onePaymentCategories};
-      save(); selected=new Date();selected.setDate(1);oneSelected=new Date(selected);detailSelected=new Date(selected);render();go("home");
+      save();if(d.pendingExpenses)pendingNotes.restore(d.pendingExpenses); selected=new Date();selected.setDate(1);oneSelected=new Date(selected);detailSelected=new Date(selected);render();go("home");
       alert("Respaldo restaurado correctamente.");
     }catch(e){alert("No pude leer ese respaldo. Elegí un archivo JSON creado por esta app.");}
     ev.target.value="";
@@ -361,10 +393,11 @@ if(requestedScreen==="oneAddScreen"){
   } else { setOneMode(false); $("oneDate").value=new Date().toISOString().slice(0,10); $("oneMonth").value=ym(selected); go("oneAddScreen"); }
 }
 render();
+if(params.get('nota')){try{openPendingCardNote(params.get('nota'),requestedScreen);}catch{alert('No pude abrir la nota. Sigue en la lista de pendientes.');}}
 
 // Navigation fallback: forms also open through normal URL query links, so Android/PWA browsers do not depend on click handlers.
 
-window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(s),paymentAgenda:agendaBackup()}})});
+window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(s),paymentAgenda:agendaBackup(),pendingExpenses:pendingNotes.read()}})});
 
 if (window.isSecureContext && "serviceWorker" in navigator) {
   navigator.serviceWorker.register(new URL("sw.js", document.baseURI), {scope: new URL("./", document.baseURI).pathname, updateViaCache: "none"}).then(registration => registration.update()).catch(() => {});

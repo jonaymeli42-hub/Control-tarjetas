@@ -1,7 +1,7 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=installment-months-1"><title>Control de Tarjetas</title><link rel="stylesheet" href="drive-backup.css"><script src="drive-backup.js?v=backup-24h-1" defer></script><script src="theme.js?v=system-bars-1" defer></script><script src="agenda-model.js?v=20" defer></script></head><body>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111827"><link rel="apple-touch-icon" href="icon-192.png"><link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=shared-notes-3"><title>Control de Tarjetas</title><link rel="stylesheet" href="drive-backup.css"><script src="drive-backup.js?v=backup-24h-1" defer></script><script src="theme.js?v=system-bars-1" defer></script><script src="agenda-model.js?v=20" defer></script></head><body>
 <header><div><small>CONTROL DE TARJETAS</small><h1 id="headerTitle">Resumen del mes</h1></div><div class="header-actions"><button id="theme-toggle" type="button" aria-label="Activar modo oscuro">Oscuro</button><button id="backup" type="button" title="Respaldo" aria-label="Abrir respaldo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 19H6a4 4 0 0 1-1-8 7 7 0 0 1 13-3 5 5 0 0 1 1 10h-3M12 12v9M9 18l3 3 3-3"/></svg></button></div></header>
 <main>
-<section id="home" class="screen active">
+<section id="home" class="screen active"><div class="shared-note-access"><a href="../Control-gastos/rapido/?accion=nota">🎙 Anotar gasto rápido</a><a href="../Control-gastos/rapido/?accion=pendientes">Notas pendientes <span data-shared-note-count>0</span> ›</a></div>
   <div class="monthnav"><button id="prev">‹</button><b id="month"></b><button id="next">›</button></div>
 
   <div class="quick-grid home-quick-actions"><a class="primary quick-link" id="add" href="?screen=addScreen"><span aria-hidden="true">＋</span><span>Agregar gasto<br>en cuotas</span></a><a class="primary quick-link" id="addOne" href="?screen=oneAddScreen"><span aria-hidden="true">＋</span><span>Agregar gasto<br>en un pago</span></a></div>
@@ -74,4 +74,4 @@
   }
   window.__openAdd=function(id){document.querySelectorAll(".screen").forEach(function(x){x.classList.remove("active")});var el=document.getElementById(id);if(el){el.classList.add("active");window.scrollTo(0,0)} };
 })();
-</script><script type="module" src="app.js?v=installment-months-1"></script></body></html>
+</script><script type="module" src="app.js?v=shared-notes-3"></script></body></html>

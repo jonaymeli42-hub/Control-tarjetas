@@ -22,5 +22,15 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Anotar gasto · ambas apps",
+      "url": "./notas.html?accion=nota"
+    },
+    {
+      "name": "Notas pendientes",
+      "url": "./notas.html?accion=pendientes"
+    }
   ]
 }
