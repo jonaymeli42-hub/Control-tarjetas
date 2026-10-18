@@ -1,9 +1,11 @@
-import {createPendingExpenseStore,SHARED_PENDING_KEY,pendingOperationId,validPendingExpenses} from './pending-expenses.js?v=shared-3';
+import {consumeNativeNote,showNativeReturn} from './native-note-bridge.js?v=1';
+import {createPendingExpenseStore,SHARED_PENDING_KEY,pendingOperationId,validPendingExpenses} from './pending-expenses.js?v=native-1';
 import {parseVoiceExpense} from './voice-expense-parser.js?v=1';
 import {installmentMonths,moveInstallments,preserveSchedule} from './installment-schedule.js?v=1';
 let editingId=null, editingOneId=null, detailCard=null;
 let pendingCardNoteId=null,pendingCardScreen=null;
 const pendingNotes=createPendingExpenseStore(localStorage,SHARED_PENDING_KEY);
+try{consumeNativeNote(pendingNotes,window.location,window.history);}catch{alert('No pude importar la nota. Sigue guardada en Anotar gasto.');}
 const KEY="tarjetas_app_v3";
 import { ENCRYPTED_SEED } from './data.js';
 async function decryptSeed(){
@@ -242,7 +244,7 @@ function clearPendingCardContext(){pendingCardNoteId=null;pendingCardScreen=null
 function openPendingCardNote(noteId,screenId){
  const n=pendingNotes.read().notes.find(n=>n.id===noteId);if(!n){alert('La nota ya no está pendiente. Revisá los movimientos o la lista de notas.');return;}
  const recordId=pendingOperationId(n.id);
- if([...s.expenses,...s.onePayments].some(e=>String(e.id)===recordId)){pendingNotes.remove(n.id);refreshPendingNoteCount();alert('Esta nota ya estaba registrada en Control Tarjetas. No se duplicó.');return;}
+ if([...s.expenses,...s.onePayments].some(e=>String(e.id)===recordId)){pendingNotes.remove(n.id);refreshPendingNoteCount();showNativeReturn(n,'tarjetas');alert('Esta nota ya estaba registrada en Control Tarjetas. No se duplicó.');return;}
  const cats=s.onePaymentCategories.map(name=>({id:name,name})),draft=parseVoiceExpense(n.text,cats,n.date);
  const one=screenId==='oneAddScreen',target=one?'oneAddScreen':'addScreen';
  if(one){editingOneId=null;$("oneForm").reset();populateOne();setOneMode(false);$("oneDesc").value=draft.description;$("oneAmount").value=draft.cents===null?'':(draft.cents/100).toFixed(2);$("oneDate").type='date';$("oneDate").value=draft.date;$("oneMonth").value=draft.date.slice(0,7);$("oneCategory").value=draft.categoryId;}
@@ -253,11 +255,13 @@ function openPendingCardNote(noteId,screenId){
 }
 function savePendingCardNote(kind,data){
  const noteId=pendingCardNoteId,recordId=pendingOperationId(noteId);
+ let nativeSource=null;
  try{
-  const stored=JSON.parse(localStorage.getItem(KEY)||'null');if(stored&&[...stored.expenses,...stored.onePayments].some(e=>String(e.id)===recordId)){pendingNotes.remove(noteId);clearPendingCardContext();alert('La nota ya se registró. No se duplicó el gasto.');return false;}
+  nativeSource=pendingNotes.read().notes.find(n=>n.id===noteId);
+  const stored=JSON.parse(localStorage.getItem(KEY)||'null');if(stored&&[...stored.expenses,...stored.onePayments].some(e=>String(e.id)===recordId)){pendingNotes.remove(noteId);clearPendingCardContext();showNativeReturn(nativeSource,'tarjetas');alert('La nota ya se registró. No se duplicó el gasto.');return false;}
   if(!pendingNotes.read().notes.some(n=>n.id===noteId)){alert('Esta nota ya no está pendiente. Revisá las apps antes de volver a registrarla.');return false;}
   const before=structuredClone(s);try{s[kind].push({id:recordId,createdAt:new Date().toISOString(),...data});save();}catch(error){s=before;throw error;}
-  clearPendingCardContext();try{pendingNotes.remove(noteId);window.DriveBackup?.changed();}catch{alert('El gasto se guardó. La nota sigue en la lista; al abrirla de nuevo no se duplicará.');}refreshPendingNoteCount();return true;
+  clearPendingCardContext();try{pendingNotes.remove(noteId);window.DriveBackup?.changed();}catch{alert('El gasto se guardó. La nota sigue en la lista; al abrirla de nuevo no se duplicará.');}refreshPendingNoteCount();showNativeReturn(nativeSource,'tarjetas');return true;
  }catch{alert('No pude confirmar el guardado. La nota sigue pendiente para reintentar.');return false;}
 }
 window.addEventListener('storage',event=>{if(event.key===SHARED_PENDING_KEY)refreshPendingNoteCount();});
