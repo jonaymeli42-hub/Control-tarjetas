@@ -1,5 +1,5 @@
-import {consumeNativeNote,showNativeReturn} from './native-note-bridge.js?v=1';
-import {createPendingExpenseStore,SHARED_PENDING_KEY,pendingOperationId,validPendingExpenses} from './pending-expenses.js?v=native-1';
+import {consumeNativeNote,showNativeReturn} from './native-note-bridge.js?v=2';
+import {createPendingExpenseStore,SHARED_PENDING_KEY,pendingOperationId,validPendingExpenses} from './pending-expenses.js?v=silent-1';
 import {parseVoiceExpense} from './voice-expense-parser.js?v=1';
 import {installmentMonths,moveInstallments,preserveSchedule} from './installment-schedule.js?v=1';
 let editingId=null, editingOneId=null, detailCard=null;
