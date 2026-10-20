@@ -158,8 +158,15 @@ function renderFinished(){
 }
 function renderCards(){
   $("cardsMonth").textContent=monthName(selected);
-  $("cardsList").innerHTML=s.cards.map((c,i)=>{const paid=Array.isArray(c.paidMonths)&&c.paidMonths.includes(ym(selected));return `<div class="row card-payment-row ${paid?'is-paid':''}"><span class="card-payment-name"><i class="dot" style="background:${esc(c.color)}"></i><span>${esc(c.name)}</span></span><div class="card-compact-actions"><button type="button" class="card-paid-toggle" aria-pressed="${paid}" aria-label="${esc(c.name)}: ${paid?'pagado, quitar marca':'marcar pagado'} en ${esc(monthName(selected))}" onclick="toggleCardPaid(${i})"><span aria-hidden="true">${paid?'✓':''}</span></button><details class="card-options"><summary aria-label="Opciones de ${esc(c.name)}">⋮</summary><div class="card-options-menu"><button type="button" onclick="this.closest('details').open=false;openCard('${esc(c.name).replace(/'/g,"\\'")}')">Ver</button><button type="button" onclick="this.closest('details').open=false;renameCard(${i})">Editar</button></div></details></div></div>`;}).join("");
+  $("cardsList").innerHTML=s.cards.map((c,i)=>{
+    const paid=Array.isArray(c.paidMonths)&&c.paidMonths.includes(ym(selected));
+    const q=splitTotals(s.expenses.filter(e=>e.card===c.name&&active(e,selected)),'monthly');
+    const o=splitTotals(s.onePayments.filter(e=>e.card===c.name&&e.month===ym(selected)),'amount');
+    const breakdown=(title,t)=>`<div class="card-month-breakdown"><b>${title}</b><dl>${[['Total',t.total],['Míos',t.mine],['Ajenos',t.other],['Préstamos',t.loans]].map(([label,value])=>`<div><dt>${label}</dt><dd>${money(value)}</dd></div>`).join('')}</dl></div>`;
+    return `<article class="row card-payment-row ${paid?'is-paid':''}"><div class="card-list-heading"><button type="button" class="card-payment-name card-open-expenses" data-card-index="${i}"><i class="dot" style="background:${esc(c.color)}"></i><span>${esc(c.name)}</span></button><div class="card-compact-actions"><button type="button" class="card-paid-toggle" aria-pressed="${paid}" aria-label="${esc(c.name)}: ${paid?'pagado, quitar marca':'marcar pagado'} en ${esc(monthName(selected))}" onclick="toggleCardPaid(${i})"><span aria-hidden="true">${paid?'✓':''}</span></button><details class="card-options"><summary aria-label="Opciones de ${esc(c.name)}">⋮</summary><div class="card-options-menu"><button type="button" class="card-open-expenses" data-card-index="${i}">Ver gastos</button><button type="button" onclick="this.closest('details').open=false;renameCard(${i})">Editar</button></div></details></div></div><div class="card-list-total"><span>Total del mes</span><strong>${money(q.total+o.total)}</strong></div><div class="card-list-breakdowns">${breakdown('Cuotas',q)}${breakdown('1 pago',o)}</div><button type="button" class="secondary card-open-expenses" data-card-index="${i}">Ver gastos ›</button></article>`;
+  }).join("");
 }
+$("cardsList").addEventListener('click',event=>{const button=event.target.closest('.card-open-expenses');if(button){const card=s.cards[Number(button.dataset.cardIndex)];if(card)openCard(card.name);}});
 
 window.toggleCardPaid=i=>{const card=s.cards[i];if(!card)return;const month=ym(selected);card.paidMonths=Array.isArray(card.paidMonths)?card.paidMonths:[];card.paidMonths=card.paidMonths.includes(month)?card.paidMonths.filter(value=>value!==month):[...card.paidMonths,month];save();renderCards();};
 window.changeCardsMonth=delta=>{selected=add(selected,delta);render();};
@@ -186,8 +193,7 @@ function renderHistory(){
 }
 function openCard(name){
   detailCard=name; detailSelected=new Date(selected);
-  renderCardModal();
-  $("cardModal").classList.add("open"); $("cardModal").setAttribute("aria-hidden","false");
+  closeCardModal();go("cardDetail");window.scrollTo({top:0,behavior:"auto"});
 }
 window.openCard=openCard;
 function closeCardModal(){
@@ -204,7 +210,7 @@ function renderCardModal(){
     <div class="modal-section"><b>Consumo 1 pago</b><span>Total ${money(ot.total)}</span><span>Míos ${money(ot.mine)}</span><span>Ajenos ${money(ot.other)}</span><span>Préstamos ${money(ot.loans)}</span></div>`;
 }
 function renderCardDetail(){
-  if(!detailCard)return;$("cardDetailTitle").textContent=detailCard;$("detailMonth").textContent=monthName(detailSelected);let q=s.expenses.filter(e=>e.card===detailCard&&active(e,detailSelected));let o=s.onePayments.filter(e=>e.card===detailCard&&e.month===ym(detailSelected));let qt=q.reduce((x,e)=>x+Number(e.monthly),0),ot=o.reduce((x,e)=>x+Number(e.amount),0);
+  if(!detailCard)return;$("detailCardPicker").innerHTML=s.cards.map(c=>`<option value="${esc(c.name)}" ${c.name===detailCard?'selected':''}>${esc(c.name)}</option>`).join("");$("cardDetailTitle").textContent=detailCard;$("detailMonth").textContent=monthName(detailSelected);let q=s.expenses.filter(e=>e.card===detailCard&&active(e,detailSelected));let o=s.onePayments.filter(e=>e.card===detailCard&&e.month===ym(detailSelected));let qt=q.reduce((x,e)=>x+Number(e.monthly),0),ot=o.reduce((x,e)=>x+Number(e.amount),0);
   const qb=splitTotals(q,"monthly"),ob=splitTotals(o,"amount");
   $("detailSummary").innerHTML=`<div class="stats"><div><small>Cuotas</small><b>${money(qt)}</b></div><div><small>1 pago</small><b>${money(ot)}</b></div><div><small>Total tarjeta</small><b>${money(qt+ot)}</b></div><div><small>Míos</small><b>${money(qb.mine+ob.mine)}</b></div><div><small>Ajenos</small><b>${money(qb.other+ob.other)}</b></div><div><small>Préstamos</small><b>${money(qb.loans+ob.loans)}</b></div></div>`;
   $("detailInstallments").innerHTML=q.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${installmentLabel(e,detailSelected)} · ${remainFor(e,detailSelected)} restantes · ${esc(purpose(e))}</small></span><span class="expense-side"><b>${money(e.monthly)}</b><span class="actions"><button type="button" data-action="reschedule-installment" data-id="${esc(String(e.id))}" data-number="${installmentMonths(e).indexOf(ym(detailSelected))+1}">Cambiar mes</button><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay cuotas activas en este mes.</div>';
@@ -227,6 +233,7 @@ $("prev").onclick=()=>{selected=add(selected,-1);oneSelected=new Date(selected);
 $("onePrev").onclick=()=>{oneSelected=add(oneSelected,-1);renderOnePayments()};$("oneNext").onclick=()=>{oneSelected=add(oneSelected,1);renderOnePayments()};
 $("openCardDetails").onclick=()=>{closeCardModal();go("cardDetail")};
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeCardModal()});
+$("detailCardPicker").onchange=event=>{detailCard=event.target.value;renderCardDetail();};
 $("detailPrev").onclick=()=>{detailSelected=add(detailSelected,-1);renderCardDetail()};$("detailNext").onclick=()=>{detailSelected=add(detailSelected,1);renderCardDetail()};
 function populate(){ $("card").innerHTML=s.cards.map(c=>`<option>${esc(c.name)}</option>`).join(""); }
 function populateOneCategories(preferred=$("oneCategory").value){
