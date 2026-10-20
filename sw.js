@@ -1,4 +1,4 @@
-const CACHE='control-tarjetas-v65';
+const CACHE='control-tarjetas-v66';
 const ASSETS=['./','./index.html','./styles.css','./app.js', './pending-expenses.js?v=silent-1', './native-note-bridge.js?v=2', './voice-expense-parser.js?v=1', './installment-schedule.js?v=1', './agenda-model.js?v=20', './theme.js?v=system-bars-1','./manifest.json','./notas.html','./icon-192.png','./icon-512.png','./drive-backup.js','./drive-backup.css','./drive-respaldos.html'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('control-tarjetas-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

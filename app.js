@@ -6,6 +6,12 @@ let editingId=null, editingOneId=null, detailCard=null;
 let pendingCardNoteId=null,pendingCardScreen=null;
 const pendingNotes=createPendingExpenseStore(localStorage,SHARED_PENDING_KEY);
 try{consumeNativeNote(pendingNotes,window.location,window.history);}catch{alert('No pude importar la nota. Sigue guardada en Anotar gasto.');}
+// Keep the card month controls below the real header height, including large text.
+const cardsHeader=document.querySelector('header');
+const measureCardsHeader=()=>document.documentElement.style.setProperty('--cards-header-height',`${cardsHeader.getBoundingClientRect().height}px`);
+measureCardsHeader();
+if('ResizeObserver' in window)new ResizeObserver(measureCardsHeader).observe(cardsHeader);
+else window.addEventListener('resize',measureCardsHeader);
 const KEY="tarjetas_app_v3";
 import { ENCRYPTED_SEED } from './data.js';
 async function decryptSeed(){
