@@ -13,6 +13,8 @@ measureCardsHeader();
 if('ResizeObserver' in window)new ResizeObserver(measureCardsHeader).observe(cardsHeader);
 else window.addEventListener('resize',measureCardsHeader);
 const KEY="tarjetas_app_v3";
+const Link=window.FinancingLink;
+let stateSnapshot;
 import { ENCRYPTED_SEED } from './data.js';
 async function decryptSeed(){
   const password=prompt("Ingresá la contraseña para cargar tus datos guardados:");
@@ -33,6 +35,8 @@ async function decryptSeed(){
 }
 let s=JSON.parse(localStorage.getItem(KEY)||"null");
 if(!s){s=await decryptSeed(); localStorage.setItem(KEY,JSON.stringify(s));}
+Link.reconcile(localStorage);
+s=JSON.parse(localStorage.getItem(KEY));stateSnapshot=localStorage.getItem(KEY);
 // Normalize category spelling/case so previously loaded data is grouped correctly.
 const canonicalCats={"supermercado":"Supermercado","farmacia":"Farmacia","otros/comida":"Otros/comida","nafta":"Nafta","prestamos":"Préstamos","préstamos":"Préstamos"};
 const canonicalCat=x=>canonicalCats[String(x||"").trim().toLowerCase()]||String(x||"").trim();
@@ -85,7 +89,13 @@ const remain=e=>{const now=ym(new Date());return installmentMonths(e).filter(m=>
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const jsarg=x=>JSON.stringify(x);
 function agendaBackup(){try{const value=JSON.parse(localStorage.getItem('control-tarjetas-agenda-v1'));return window.PaymentAgendaModel?.validBook(value)?value:undefined;}catch{return undefined;}}
-function save(){localStorage.setItem(KEY,JSON.stringify(s));window.DriveBackup?.changed();}
+function save(){if(stateSnapshot!==undefined&&localStorage.getItem(KEY)!==stateSnapshot){alert('Los datos cambiaron en otra ventana. Volvé a abrir la app antes de guardar.');throw Error('Tarjetas cambió; no se sobrescribieron los datos.');}localStorage.setItem(KEY,JSON.stringify(s));stateSnapshot=localStorage.getItem(KEY);window.DriveBackup?.changed();}
+function openLinkedFinancing(row){if(!Link.linked(row))return false;if(confirm('Este consumo está vinculado a una financiación. Para conservar ambos registros coordinados, se edita o elimina desde Control Préstamos. ¿Abrir la financiación?'))location.assign('/Control-prestamos/?page=cards&editFinancing='+encodeURIComponent(row.financingId));return true;}
+function refreshLinkedFinancings(){const result=Link.reconcile(localStorage);const raw=localStorage.getItem(KEY);if(raw!==stateSnapshot){const next=JSON.parse(raw);if(!Link.validCards(next))return;s=next;stateSnapshot=raw;render();}if(result.backupPending)window.DriveBackup?.changed();}
+window.addEventListener('storage',event=>{if(event.key===KEY||event.key===Link.SOURCE)refreshLinkedFinancings();});
+window.addEventListener('focus',refreshLinkedFinancings);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLinkedFinancings();});
+document.addEventListener('click',event=>{const anchor=event.target.closest('a[href]');if(!anchor)return;const url=new URL(anchor.href,location.href);if(url.origin!==location.origin||!url.searchParams.has('editOne'))return;const row=s.onePayments.find(r=>String(r.id)===url.searchParams.get('editOne'));if(Link.linked(row)){event.preventDefault();event.stopImmediatePropagation();openLinkedFinancing(row);}},true);
 function quotaTotals(m){const a=s.expenses.filter(e=>active(e,m));return {a,...splitTotals(a,'monthly')};}
 function oneTotal(m){return oneTotals(m).total;}
 function oneTotals(m){const a=s.onePayments.filter(e=>e.month===ym(m));return {a,...splitTotals(a,'amount')};}
@@ -128,7 +138,7 @@ function renderMovements(){
     ...s.expenses.map(e=>({e,kind:"quota",date:e.createdAt,label:new Date(e.createdAt).toLocaleString("es-AR"),amount:Number(e.monthly)*Number(e.installments)}))
   ].filter(row=>row.date && Number.isFinite(Date.parse(row.date))).sort((a,b)=>b.date.localeCompare(a.date)||String(b.e.id).localeCompare(String(a.e.id)));
   $("movementsCount").textContent=`${rows.length} movimiento${rows.length===1?"":"s"} · Últimas cargas primero`;
-  $("movementsList").innerHTML=rows.map(({e,kind,label,amount})=>`<article class="row expense-row movement-row"><div class="movement-info"><small class="movement-date">${esc(label)}</small><b>${esc(e.description)}</b><small>${esc(e.card)} · ${esc(purpose(e))}</small><small>${kind==="one"?`1 pago · Consumo: ${esc(dateBR(e.date))} · ${esc(e.category||"Sin categoría")}`:`${Number(e.installments)} cuotas de ${money(e.monthly)} · Inicio: ${esc(e.start)}`}</small></div><div class="expense-side"><b>${money(amount)}</b>${kind==="quota"?'<small>Importe total en cuotas</small>':''}<span class="actions"><a class="button" href="?screen=${kind==="one"?"oneAddScreen":"addScreen"}&${kind==="one"?"editOne":"editExpense"}=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="${kind==="one"?"delete-one":"delete-expense"}" data-id="${esc(String(e.id))}">Eliminar</button></span></div></article>`).join("")||'<div class="empty">Las nuevas cargas aparecerán aquí. Los registros anteriores siguen en sus pestañas; no tienen fecha de carga guardada.</div>';
+  $("movementsList").innerHTML=rows.map(({e,kind,label,amount})=>`<article class="row expense-row movement-row"><div class="movement-info"><small class="movement-date">${esc(label)}</small><b>${esc(e.description)}</b><small>${esc(e.card)} · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small><small>${kind==="one"?`1 pago · Consumo: ${esc(dateBR(e.date))} · ${esc(e.category||"Sin categoría")}`:`${Number(e.installments)} cuotas de ${money(e.monthly)} · Inicio: ${esc(e.start)}`}</small></div><div class="expense-side"><b>${money(amount)}</b>${kind==="quota"?'<small>Importe total en cuotas</small>':''}<span class="actions"><a class="button" href="?screen=${kind==="one"?"oneAddScreen":"addScreen"}&${kind==="one"?"editOne":"editExpense"}=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="${kind==="one"?"delete-one":"delete-expense"}" data-id="${esc(String(e.id))}">Eliminar</button></span></div></article>`).join("")||'<div class="empty">Las nuevas cargas aparecerán aquí. Los registros anteriores siguen en sus pestañas; no tienen fecha de carga guardada.</div>';
 }
 function renderSummary(){
   const dates=[];for(let i=0;i<18;i++)dates.push(add(selected,i));
@@ -143,7 +153,7 @@ function renderOnePayments(){
   });
   let uncategorized=list.filter(e=>!s.onePaymentCategories.some(c=>canonicalCat(c)===canonicalCat(e.category)));
   if(uncategorized.length)cats.push({name:"Otras/anteriores",...splitTotals(uncategorized,"amount"),items:uncategorized});
-  const itemHtml=e=>`<div class="row expense-row category-expense"><span><b>${esc(e.description)}</b><br><small>${dateBR(e.date)} · ${esc(e.card)} · ${esc(purpose(e))}</small></span><span class="expense-side"><b>${money(e.amount)}</b><span class="actions"><a class="button" href="?screen=oneAddScreen&editOne=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-one" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`;
+  const itemHtml=e=>`<div class="row expense-row category-expense"><span><b>${esc(e.description)}</b><br><small>${dateBR(e.date)} · ${esc(e.card)} · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small></span><span class="expense-side"><b>${money(e.amount)}</b><span class="actions"><a class="button" href="?screen=oneAddScreen&editOne=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-one" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`;
   const categoryHtml=(c,i)=>`<div class="category-group"><button type="button" class="category-toggle" data-action="toggle-category" data-index="${i}"><span><b>${esc(c.name)}</b><small>${c.items.length} consumo${c.items.length===1?"":"s"}</small></span><span class="category-total"><strong>${money(c.total)}</strong><small>Míos ${money(c.mine)} · Ajenos ${money(c.other)} · Préstamos ${money(c.loans)}</small><span class="chevron">›</span></span></button><div class="category-items" id="catItems${i}">${c.items.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(itemHtml).join("")||'<div class="category-empty">Sin consumos en este mes.</div>'}</div></div>`;
   const grand=splitTotals(list,"amount");
   $("oneSummary").innerHTML=cats.map(categoryHtml).join("")+`<div class="row total-row category-grand-total"><span><b>Total general</b><small>Míos ${money(grand.mine)} · Ajenos ${money(grand.other)} · Préstamos ${money(grand.loans)}</small></span><b>${money(grand.total)}</b></div>`;
@@ -160,7 +170,7 @@ function renderPending(){
 function renderFinished(){
   const now=new Date(); now.setDate(1);
   let all=s.expenses.filter(e=>idx(endMonth(e))<idx(now)).sort((a,b)=>idx(endMonth(b))-idx(endMonth(a)));
-  $("finishedList").innerHTML=all.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${esc(e.card)} · ${e.installments} cuotas · terminó ${monthName(endMonth(e))} · ${esc(purpose(e))}</small></span><span class="expense-side"><b>${money(Number(e.monthly))}/mes</b><span class="actions"><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">Todavía no hay gastos terminados.</div>';
+  $("finishedList").innerHTML=all.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${esc(e.card)} · ${e.installments} cuotas · terminó ${monthName(endMonth(e))} · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small></span><span class="expense-side"><b>${money(Number(e.monthly))}/mes</b><span class="actions"><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">Todavía no hay gastos terminados.</div>';
 }
 function renderCards(){
   $("cardsMonth").textContent=monthName(selected);
@@ -219,8 +229,8 @@ function renderCardDetail(){
   if(!detailCard)return;$("detailCardPicker").innerHTML=s.cards.map(c=>`<option value="${esc(c.name)}" ${c.name===detailCard?'selected':''}>${esc(c.name)}</option>`).join("");$("cardDetailTitle").textContent=detailCard;$("detailMonth").textContent=monthName(detailSelected);let q=s.expenses.filter(e=>e.card===detailCard&&active(e,detailSelected));let o=s.onePayments.filter(e=>e.card===detailCard&&e.month===ym(detailSelected));let qt=q.reduce((x,e)=>x+Number(e.monthly),0),ot=o.reduce((x,e)=>x+Number(e.amount),0);
   const qb=splitTotals(q,"monthly"),ob=splitTotals(o,"amount");
   $("detailSummary").innerHTML=`<div class="stats"><div><small>Cuotas</small><b>${money(qt)}</b></div><div><small>1 pago</small><b>${money(ot)}</b></div><div><small>Total tarjeta</small><b>${money(qt+ot)}</b></div><div><small>Míos</small><b>${money(qb.mine+ob.mine)}</b></div><div><small>Ajenos</small><b>${money(qb.other+ob.other)}</b></div><div><small>Préstamos</small><b>${money(qb.loans+ob.loans)}</b></div></div>`;
-  $("detailInstallments").innerHTML=q.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${installmentLabel(e,detailSelected)} · ${remainFor(e,detailSelected)} restantes · ${esc(purpose(e))}</small></span><span class="expense-side"><b>${money(e.monthly)}</b><span class="actions"><button type="button" data-action="reschedule-installment" data-id="${esc(String(e.id))}" data-number="${installmentMonths(e).indexOf(ym(detailSelected))+1}">Cambiar mes</button><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay cuotas activas en este mes.</div>';
-  $("detailOne").innerHTML=o.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${dateBR(e.date)} · ${esc(e.category)} · ${esc(purpose(e))}</small></span><span class="expense-side"><b>${money(e.amount)}</b><span class="actions"><a class="button" href="?screen=oneAddScreen&editOne=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-one" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay consumos a un pago en este mes.</div>';
+  $("detailInstallments").innerHTML=q.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${installmentLabel(e,detailSelected)} · ${remainFor(e,detailSelected)} restantes · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small></span><span class="expense-side"><b>${money(e.monthly)}</b><span class="actions"><button type="button" data-action="reschedule-installment" data-id="${esc(String(e.id))}" data-number="${installmentMonths(e).indexOf(ym(detailSelected))+1}">Cambiar mes</button><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay cuotas activas en este mes.</div>';
+  $("detailOne").innerHTML=o.slice().sort((a,b)=>a.date.localeCompare(b.date)).map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${dateBR(e.date)} · ${esc(e.category)} · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small></span><span class="expense-side"><b>${money(e.amount)}</b><span class="actions"><a class="button" href="?screen=oneAddScreen&editOne=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-one" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay consumos a un pago en este mes.</div>';
 }
 function remainFor(e,m){return installmentMonths(e).filter(month=>month>=ym(m)).length;}
 function installmentLabel(e,m){const current=installmentMonths(e).indexOf(ym(m))+1;return `${Math.max(1,current)} de ${Number(e.installments)}`;}
@@ -326,9 +336,9 @@ document.addEventListener("click", function(ev){
 });
 
 $("form").onsubmit=e=>{e.preventDefault();let d=$("desc").value.trim(),responsible=$("expenseResponsible").value;if(!d||!$("card").value||!(+$("amount").value>0)||!(+$("installments").value>0)||!$("start").value)return alert("Completá todos los datos.");let data={description:d,card:$("card").value,monthly:+$("amount").value,installments:+$("installments").value,start:$("start").value,responsible:purpose({responsible})};if(pendingCardNoteId){if(savePendingCardNote("expenses",data))go("home");return;}if(editingId!==null){let i=s.expenses.findIndex(x=>String(x.id)===String(editingId));if(i>=0)s.expenses[i]=preserveSchedule(s.expenses[i],data)}else s.expenses.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingId=null;save();go("home")};
-$("oneForm").onsubmit=e=>{e.preventDefault();const existing=editingOneId!==null?s.onePayments.find(x=>String(x.id)===String(editingOneId)):null;const enteredDate=$("oneDate").value;const unchangedDate=existing && enteredDate===(consumptionDate(existing.date)||String(existing.date??''));const savedDate=unchangedDate?existing.date:consumptionDate(enteredDate);if(!savedDate)return alert("Revisá la fecha del consumo.");let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:savedDate,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(pendingCardNoteId){if(savePendingCardNote("onePayments",data)){oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments");}return;}if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
-window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e)return;editingOneId=String(id);populateOne();$("oneDesc").value=e.description;$("oneAmount").value=e.amount;fillConsumptionDate(e);$("oneCard").value=e.card;$("oneCategory").value=e.category;$("oneMonth").value=e.month;$("oneResponsible").value=purpose(e);setOneMode(true);go("oneAddScreen")};
-window.deleteOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.onePayments=s.onePayments.filter(x=>String(x.id)!==String(id));save();render()}};
+$("oneForm").onsubmit=e=>{e.preventDefault();const existing=editingOneId!==null?s.onePayments.find(x=>String(x.id)===String(editingOneId)):null;if(openLinkedFinancing(existing))return;const enteredDate=$("oneDate").value;const unchangedDate=existing && enteredDate===(consumptionDate(existing.date)||String(existing.date??''));const savedDate=unchangedDate?existing.date:consumptionDate(enteredDate);if(!savedDate)return alert("Revisá la fecha del consumo.");let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:savedDate,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(pendingCardNoteId){if(savePendingCardNote("onePayments",data)){oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments");}return;}if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
+window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e||openLinkedFinancing(e))return;editingOneId=String(id);populateOne();$("oneDesc").value=e.description;$("oneAmount").value=e.amount;fillConsumptionDate(e);$("oneCard").value=e.card;$("oneCategory").value=e.category;$("oneMonth").value=e.month;$("oneResponsible").value=purpose(e);setOneMode(true);go("oneAddScreen")};
+window.deleteOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(openLinkedFinancing(e))return;if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.onePayments=s.onePayments.filter(x=>String(x.id)!==String(id));save();render()}};
 $("newCard").onclick=()=>{let n=prompt("Nombre de la nueva tarjeta:");if(n&&n.trim()&&!s.cards.some(c=>c.name.toLowerCase()===n.trim().toLowerCase())){s.cards.push({name:n.trim(),color:"#4b5563"});save();render()}else if(n)alert("Esa tarjeta ya existe.")};
 window.renameCard=i=>{let n=prompt("Nuevo nombre:",s.cards[i].name);if(n&&n.trim()){let old=s.cards[i].name,newName=n.trim();s.cards[i].name=newName;s.expenses.forEach(e=>{if(e.card===old)e.card=newName});s.onePayments.forEach(e=>{if(e.card===old)e.card=newName});save();render()}};
 let categoriesReturn="onePayments";
@@ -348,7 +358,7 @@ window.renameCategory=i=>{let n=prompt("Nuevo nombre:",s.onePaymentCategories[i]
 window.deleteCategory=i=>{let c=s.onePaymentCategories[i];if(confirm(`¿Eliminar la categoría "${c}"? Los consumos históricos conservarán su categoría.`)){s.onePaymentCategories.splice(i,1);save();populateOneCategories();render()}};
 
 function backupBlob(){
-  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...s,paymentAgenda:agendaBackup(),pendingExpenses:pendingNotes.read()}};
+  const payload={version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...JSON.parse(localStorage.getItem(KEY)),paymentAgenda:agendaBackup(),pendingExpenses:pendingNotes.read()}};
   return new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
 }
 function downloadBackup(){
@@ -380,8 +390,8 @@ $("backupFile").onchange=ev=>{
       const obj=JSON.parse(reader.result); const d=obj?.data||obj;
       if(!validBackup(obj)) throw new Error("Formato inválido");
       if(!confirm("Esto reemplazará los datos actuales de la app por los del respaldo. ¿Querés continuar?")) return;
-      s={expenses:d.expenses,cards:d.cards,onePayments:d.onePayments,onePaymentCategories:d.onePaymentCategories};
-      save();if(d.pendingExpenses)pendingNotes.restore(d.pendingExpenses); selected=new Date();selected.setDate(1);oneSelected=new Date(selected);detailSelected=new Date(selected);render();go("home");
+      s={...d,expenses:d.expenses,cards:d.cards,onePayments:d.onePayments,onePaymentCategories:d.onePaymentCategories};
+      save();refreshLinkedFinancings();if(d.pendingExpenses)pendingNotes.restore(d.pendingExpenses); selected=new Date();selected.setDate(1);oneSelected=new Date(selected);detailSelected=new Date(selected);render();go("home");
       alert("Respaldo restaurado correctamente.");
     }catch(e){alert("No pude leer ese respaldo. Elegí un archivo JSON creado por esta app.");}
     ev.target.value="";
@@ -405,7 +415,8 @@ if(requestedScreen==="movements")go("movements");
 if(requestedScreen==="oneAddScreen"){
   if(editOneParam!==null){
     const e=s.onePayments.find(x=>String(x.id)===String(editOneParam));
-    if(e){ editingOneId=String(e.id); populateOne(); $("oneDesc").value=e.description; $("oneAmount").value=e.amount; fillConsumptionDate(e); $("oneCard").value=e.card; $("oneCategory").value=e.category; $("oneMonth").value=e.month; $("oneResponsible").value=purpose(e); setOneMode(true); go("oneAddScreen"); }
+    if(e&&!Link.linked(e)){ editingOneId=String(e.id); populateOne(); $("oneDesc").value=e.description; $("oneAmount").value=e.amount; fillConsumptionDate(e); $("oneCard").value=e.card; $("oneCategory").value=e.category; $("oneMonth").value=e.month; $("oneResponsible").value=purpose(e); setOneMode(true); go("oneAddScreen"); }
+    else if(e&&Link.linked(e)){go("movements");openLinkedFinancing(e);}
     else { setOneMode(false); $("oneDate").value=new Date().toISOString().slice(0,10); $("oneMonth").value=ym(selected); go("oneAddScreen"); }
   } else { setOneMode(false); $("oneDate").value=new Date().toISOString().slice(0,10); $("oneMonth").value=ym(selected); go("oneAddScreen"); }
 }
@@ -414,7 +425,7 @@ if(params.get('nota')){try{openPendingCardNote(params.get('nota'),requestedScree
 
 // Navigation fallback: forms also open through normal URL query links, so Android/PWA browsers do not depend on click handlers.
 
-window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(s),paymentAgenda:agendaBackup(),pendingExpenses:pendingNotes.read()}})});
+window.DriveBackup?.init({app:"tarjetas",getBackup:()=>({version:1,app:"Control de Tarjetas",createdAt:new Date().toISOString(),data:{...structuredClone(JSON.parse(localStorage.getItem(KEY))),paymentAgenda:agendaBackup(),pendingExpenses:pendingNotes.read()}})});
 
 if (window.isSecureContext && "serviceWorker" in navigator) {
   navigator.serviceWorker.register(new URL("sw.js", document.baseURI), {scope: new URL("./", document.baseURI).pathname, updateViaCache: "none"}).then(registration => registration.update()).catch(() => {});
