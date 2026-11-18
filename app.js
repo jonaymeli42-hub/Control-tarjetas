@@ -90,18 +90,19 @@ const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const jsarg=x=>JSON.stringify(x);
 function agendaBackup(){try{const value=JSON.parse(localStorage.getItem('control-tarjetas-agenda-v1'));return window.PaymentAgendaModel?.validBook(value)?value:undefined;}catch{return undefined;}}
 function save(){if(stateSnapshot!==undefined&&localStorage.getItem(KEY)!==stateSnapshot){alert('Los datos cambiaron en otra ventana. Volvé a abrir la app antes de guardar.');throw Error('Tarjetas cambió; no se sobrescribieron los datos.');}localStorage.setItem(KEY,JSON.stringify(s));stateSnapshot=localStorage.getItem(KEY);window.DriveBackup?.changed();}
-function openLinkedFinancing(row){if(!Link.linked(row))return false;if(confirm('Este consumo está vinculado a una financiación. Para conservar ambos registros coordinados, se edita o elimina desde Control Préstamos. ¿Abrir la financiación?'))location.assign('/Control-prestamos/?page=cards&editFinancing='+encodeURIComponent(row.financingId));return true;}
+function openLinkedFinancing(row){if(!Link.linked(row))return false;if(confirm('Este consumo está vinculado a una financiación. Para conservar ambos registros coordinados, se edita o elimina desde Control Préstamos. ¿Abrir la financiación?'))location.assign('/Control-prestamos/?page='+(row.linkType==='installment-financing'?'financings&editOwnFinancing=':'cards&editFinancing=')+encodeURIComponent(row.financingId));return true;}
 function refreshLinkedFinancings(){const result=Link.reconcile(localStorage);const raw=localStorage.getItem(KEY);if(raw!==stateSnapshot){const next=JSON.parse(raw);if(!Link.validCards(next))return;s=next;stateSnapshot=raw;render();}if(result.backupPending)window.DriveBackup?.changed();}
 window.addEventListener('storage',event=>{if(event.key===KEY||event.key===Link.SOURCE)refreshLinkedFinancings();});
 window.addEventListener('focus',refreshLinkedFinancings);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLinkedFinancings();});
-document.addEventListener('click',event=>{const anchor=event.target.closest('a[href]');if(!anchor)return;const url=new URL(anchor.href,location.href);if(url.origin!==location.origin||!url.searchParams.has('editOne'))return;const row=s.onePayments.find(r=>String(r.id)===url.searchParams.get('editOne'));if(Link.linked(row)){event.preventDefault();event.stopImmediatePropagation();openLinkedFinancing(row);}},true);
-function quotaTotals(m){const a=s.expenses.filter(e=>active(e,m));return {a,...splitTotals(a,'monthly')};}
+const quotaAmount=(expense,month)=>{const months=installmentMonths(expense),index=months.indexOf(ym(month));if(index<0)return 0;return Array.isArray(expense.installmentAmounts)&&expense.installmentAmounts.length===Number(expense.installments)?Number(expense.installmentAmounts[index]):Number(expense.monthly);};
+document.addEventListener('click',event=>{const anchor=event.target.closest('a[href]');if(!anchor)return;const url=new URL(anchor.href,location.href);if(url.origin!==location.origin)return;const linkedOne=url.searchParams.has('editOne')&&s.onePayments.find(r=>String(r.id)===url.searchParams.get('editOne'));const linkedQuota=url.searchParams.has('editExpense')&&s.expenses.find(r=>String(r.id)===url.searchParams.get('editExpense'));const row=linkedOne||linkedQuota;if(Link.linked(row)){event.preventDefault();event.stopImmediatePropagation();openLinkedFinancing(row);}},true);
+function quotaTotals(m){const a=s.expenses.filter(e=>active(e,m)).map(e=>({...e,monthly:quotaAmount(e,m)}));return {a,...splitTotals(a,'monthly')};}
 function oneTotal(m){return oneTotals(m).total;}
 function oneTotals(m){const a=s.onePayments.filter(e=>e.month===ym(m));return {a,...splitTotals(a,'amount')};}
 function futureQuotaTotal(m,predicate=()=>true){
   return s.expenses.filter(predicate).reduce((sum,e)=>{
-    return sum+Number(e.monthly)*installmentMonths(e).filter(month=>month>ym(m)).length;
+    return sum+installmentMonths(e).reduce((part,month)=>month>ym(m)?part+quotaAmount(e,parseMonth(month)):part,0);
   },0);
 }
 function render(){
@@ -135,7 +136,7 @@ function render(){
 function renderMovements(){
   const rows=[
     ...s.onePayments.map(e=>({e,kind:"one",date:e.createdAt,label:new Date(e.createdAt).toLocaleString("es-AR"),amount:Number(e.amount)})),
-    ...s.expenses.map(e=>({e,kind:"quota",date:e.createdAt,label:new Date(e.createdAt).toLocaleString("es-AR"),amount:Number(e.monthly)*Number(e.installments)}))
+    ...s.expenses.map(e=>({e,kind:"quota",date:e.createdAt,label:new Date(e.createdAt).toLocaleString("es-AR"),amount:Array.isArray(e.installmentAmounts)?e.installmentAmounts.reduce((sum,value)=>sum+Number(value||0),0):Number(e.monthly)*Number(e.installments)}))
   ].filter(row=>row.date && Number.isFinite(Date.parse(row.date))).sort((a,b)=>b.date.localeCompare(a.date)||String(b.e.id).localeCompare(String(a.e.id)));
   $("movementsCount").textContent=`${rows.length} movimiento${rows.length===1?"":"s"} · Últimas cargas primero`;
   $("movementsList").innerHTML=rows.map(({e,kind,label,amount})=>`<article class="row expense-row movement-row"><div class="movement-info"><small class="movement-date">${esc(label)}</small><b>${esc(e.description)}</b><small>${esc(e.card)} · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small><small>${kind==="one"?`1 pago · Consumo: ${esc(dateBR(e.date))} · ${esc(e.category||"Sin categoría")}`:`${Number(e.installments)} cuotas de ${money(e.monthly)} · Inicio: ${esc(e.start)}`}</small></div><div class="expense-side"><b>${money(amount)}</b>${kind==="quota"?'<small>Importe total en cuotas</small>':''}<span class="actions"><a class="button" href="?screen=${kind==="one"?"oneAddScreen":"addScreen"}&${kind==="one"?"editOne":"editExpense"}=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="${kind==="one"?"delete-one":"delete-expense"}" data-id="${esc(String(e.id))}">Eliminar</button></span></div></article>`).join("")||'<div class="empty">Las nuevas cargas aparecerán aquí. Los registros anteriores siguen en sus pestañas; no tienen fecha de carga guardada.</div>';
@@ -163,7 +164,7 @@ window.toggleOneCategory=i=>{const box=$("catItems"+i),btn=box?.previousElementS
 
 function renderPending(){
   // Mantiene el orden original de carga: cada gasto nuevo se agrega al final.
-  $("pendingList").innerHTML=s.expenses.filter(e=>remain(e)>0).map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${esc(e.card)} · ${remain(e)} cuota(s) restantes · ${esc(purpose(e))} · termina ${monthName(endMonth(e))}</small></span><span class="expense-side"><b>${money(Number(e.monthly)*remain(e))}</b><span class="actions"><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay gastos pendientes.</div>';
+  $("pendingList").innerHTML=s.expenses.filter(e=>remain(e)>0).map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${esc(e.card)} · ${remain(e)} cuota(s) restantes · ${esc(purpose(e))} · termina ${monthName(endMonth(e))}</small></span><span class="expense-side"><b>${money(installmentMonths(e).reduce((sum,month)=>month>=ym(new Date())?sum+quotaAmount(e,parseMonth(month)):sum,0))}</b><span class="actions">${Link.linked(e)?'<a class="button" href="/Control-prestamos/?page=financings">Abrir Préstamos</a>':`<a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button>`}</span></span></div>`).join("")||'<div class="empty">No hay gastos pendientes.</div>';
   $("futurePending").textContent=money(futureQuotaTotal(selected));
   $("futurePendingBreakdown").textContent=`Mías ${money(futureQuotaTotal(selected,personal))} · Ajenas ${money(futureQuotaTotal(selected,ajeno))} · Préstamos ${money(futureQuotaTotal(selected,e=>purpose(e)==='Préstamos'))}`;
 }
@@ -226,7 +227,7 @@ function renderCardModal(){
     <div class="modal-section"><b>Consumo 1 pago</b><span>Total ${money(ot.total)}</span><span>Míos ${money(ot.mine)}</span><span>Ajenos ${money(ot.other)}</span><span>Préstamos ${money(ot.loans)}</span></div>`;
 }
 function renderCardDetail(){
-  if(!detailCard)return;$("detailCardPicker").innerHTML=s.cards.map(c=>`<option value="${esc(c.name)}" ${c.name===detailCard?'selected':''}>${esc(c.name)}</option>`).join("");$("cardDetailTitle").textContent=detailCard;$("detailMonth").textContent=monthName(detailSelected);let q=s.expenses.filter(e=>e.card===detailCard&&active(e,detailSelected));let o=s.onePayments.filter(e=>e.card===detailCard&&e.month===ym(detailSelected));let qt=q.reduce((x,e)=>x+Number(e.monthly),0),ot=o.reduce((x,e)=>x+Number(e.amount),0);
+  if(!detailCard)return;$("detailCardPicker").innerHTML=s.cards.map(c=>`<option value="${esc(c.name)}" ${c.name===detailCard?'selected':''}>${esc(c.name)}</option>`).join("");$("cardDetailTitle").textContent=detailCard;$("detailMonth").textContent=monthName(detailSelected);let q=s.expenses.filter(e=>e.card===detailCard&&active(e,detailSelected)).map(e=>({...e,monthly:quotaAmount(e,detailSelected)}));let o=s.onePayments.filter(e=>e.card===detailCard&&e.month===ym(detailSelected));let qt=q.reduce((x,e)=>x+Number(e.monthly),0),ot=o.reduce((x,e)=>x+Number(e.amount),0);
   const qb=splitTotals(q,"monthly"),ob=splitTotals(o,"amount");
   $("detailSummary").innerHTML=`<div class="stats"><div><small>Cuotas</small><b>${money(qt)}</b></div><div><small>1 pago</small><b>${money(ot)}</b></div><div><small>Total tarjeta</small><b>${money(qt+ot)}</b></div><div><small>Míos</small><b>${money(qb.mine+ob.mine)}</b></div><div><small>Ajenos</small><b>${money(qb.other+ob.other)}</b></div><div><small>Préstamos</small><b>${money(qb.loans+ob.loans)}</b></div></div>`;
   $("detailInstallments").innerHTML=q.map(e=>`<div class="row expense-row"><span><b>${esc(e.description)}</b><br><small>${installmentLabel(e,detailSelected)} · ${remainFor(e,detailSelected)} restantes · ${esc(purpose(e))}${Link.linked(e)?" · Vinculado a Préstamos":""}</small></span><span class="expense-side"><b>${money(e.monthly)}</b><span class="actions"><button type="button" data-action="reschedule-installment" data-id="${esc(String(e.id))}" data-number="${installmentMonths(e).indexOf(ym(detailSelected))+1}">Cambiar mes</button><a class="button" href="?screen=addScreen&editExpense=${encodeURIComponent(String(e.id))}">Editar</a><button type="button" class="danger" data-action="delete-expense" data-id="${esc(String(e.id))}">Eliminar</button></span></span></div>`).join("")||'<div class="empty">No hay cuotas activas en este mes.</div>';
@@ -298,6 +299,7 @@ $("rescheduleExpense").onclick=()=>{
 };
 function openInstallmentReschedule(expenseId,number){
  const expense=s.expenses.find(e=>String(e.id)===String(expenseId));if(!expense)return;
+ if(openLinkedFinancing(expense))return;
  const months=installmentMonths(expense),dialog=$("installmentReschedule");
  $("rescheduleDescription").textContent=expense.description;
  $("rescheduleNumber").innerHTML=months.map((m,i)=>`<option value="${i+1}">${i+1} de ${months.length} · ${esc(monthName(parseMonth(m)))}</option>`).join('');
@@ -322,8 +324,8 @@ function setOneMode(editing){clearPendingCardContext();$("oneAddScreen").querySe
 $("add").onclick=null;
 function addOneForm(){editingOneId=null;$("oneForm").reset();$("oneDate").type="date";populateOne();$("oneDate").value=new Date().toISOString().slice(0,10);$("oneMonth").value=ym(selected);$("oneResponsible").value="Mío";setOneMode(false);go("oneAddScreen");}
 $("addOne").onclick=null;$("addOne2").onclick=addOneForm;
-window.editExpense=id=>{let e=s.expenses.find(x=>String(x.id)===String(id));if(!e)return;editingId=String(id);populate();$("desc").value=e.description;$("card").value=e.card;$("amount").value=e.monthly;$("installments").value=e.installments;$("start").value=e.start;$("expenseResponsible").value=purpose(e);setFormMode(true);go("addScreen")};
-window.deleteExpense=id=>{let e=s.expenses.find(x=>String(x.id)===String(id));if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.expenses=s.expenses.filter(x=>String(x.id)!==String(id));save();render()}};
+window.editExpense=id=>{let e=s.expenses.find(x=>String(x.id)===String(id));if(!e)return;if(openLinkedFinancing(e))return;editingId=String(id);populate();$("desc").value=e.description;$("card").value=e.card;$("amount").value=e.monthly;$("installments").value=e.installments;$("start").value=e.start;$("expenseResponsible").value=purpose(e);setFormMode(true);go("addScreen")};
+window.deleteExpense=id=>{let e=s.expenses.find(x=>String(x.id)===String(id));if(openLinkedFinancing(e))return;if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.expenses=s.expenses.filter(x=>String(x.id)!==String(id));save();render()}};
 document.addEventListener("click", function(ev){
   const b=ev.target.closest("[data-action]"); if(!b) return;
   ev.preventDefault(); ev.stopPropagation();
@@ -335,7 +337,7 @@ document.addEventListener("click", function(ev){
   if(a==="close-card-modal") return closeCardModal();
 });
 
-$("form").onsubmit=e=>{e.preventDefault();let d=$("desc").value.trim(),responsible=$("expenseResponsible").value;if(!d||!$("card").value||!(+$("amount").value>0)||!(+$("installments").value>0)||!$("start").value)return alert("Completá todos los datos.");let data={description:d,card:$("card").value,monthly:+$("amount").value,installments:+$("installments").value,start:$("start").value,responsible:purpose({responsible})};if(pendingCardNoteId){if(savePendingCardNote("expenses",data))go("home");return;}if(editingId!==null){let i=s.expenses.findIndex(x=>String(x.id)===String(editingId));if(i>=0)s.expenses[i]=preserveSchedule(s.expenses[i],data)}else s.expenses.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingId=null;save();go("home")};
+$("form").onsubmit=e=>{e.preventDefault();const existing=editingId!==null?s.expenses.find(x=>String(x.id)===String(editingId)):null;if(openLinkedFinancing(existing))return;let d=$("desc").value.trim(),responsible=$("expenseResponsible").value;if(!d||!$("card").value||!(+$("amount").value>0)||!(+$("installments").value>0)||!$("start").value)return alert("Completá todos los datos.");let data={description:d,card:$("card").value,monthly:+$("amount").value,installments:+$("installments").value,start:$("start").value,responsible:purpose({responsible})};if(pendingCardNoteId){if(savePendingCardNote("expenses",data))go("home");return;}if(editingId!==null){let i=s.expenses.findIndex(x=>String(x.id)===String(editingId));if(i>=0)s.expenses[i]=preserveSchedule(s.expenses[i],data)}else s.expenses.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingId=null;save();go("home")};
 $("oneForm").onsubmit=e=>{e.preventDefault();const existing=editingOneId!==null?s.onePayments.find(x=>String(x.id)===String(editingOneId)):null;if(openLinkedFinancing(existing))return;const enteredDate=$("oneDate").value;const unchangedDate=existing && enteredDate===(consumptionDate(existing.date)||String(existing.date??''));const savedDate=unchangedDate?existing.date:consumptionDate(enteredDate);if(!savedDate)return alert("Revisá la fecha del consumo.");let d=$("oneDesc").value.trim();if(!d||!(+$("oneAmount").value>0)||!$("oneDate").value||!$("oneCard").value||!$("oneCategory").value||!$("oneMonth").value)return alert("Completá todos los datos.");let data={description:d,amount:+$("oneAmount").value,date:savedDate,card:$("oneCard").value,category:$("oneCategory").value,month:$("oneMonth").value,responsible:purpose({responsible:$("oneResponsible").value})};if(pendingCardNoteId){if(savePendingCardNote("onePayments",data)){oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments");}return;}if(editingOneId!==null){let i=s.onePayments.findIndex(x=>String(x.id)===String(editingOneId));if(i>=0)s.onePayments[i]={...s.onePayments[i],...data}}else s.onePayments.push({id:crypto.randomUUID(),createdAt:new Date().toISOString(),...data});editingOneId=null;save();oneSelected=parseMonth(data.month);selected=parseMonth(data.month);go("onePayments")};
 window.editOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(!e||openLinkedFinancing(e))return;editingOneId=String(id);populateOne();$("oneDesc").value=e.description;$("oneAmount").value=e.amount;fillConsumptionDate(e);$("oneCard").value=e.card;$("oneCategory").value=e.category;$("oneMonth").value=e.month;$("oneResponsible").value=purpose(e);setOneMode(true);go("oneAddScreen")};
 window.deleteOne=id=>{let e=s.onePayments.find(x=>String(x.id)===String(id));if(openLinkedFinancing(e))return;if(e&&confirm(`¿Eliminar "${e.description}"? Esta acción no se puede deshacer.`)){s.onePayments=s.onePayments.filter(x=>String(x.id)!==String(id));save();render()}};
@@ -376,7 +378,7 @@ async function shareBackup(){
 }
 function validBackup(obj){
   const d=obj?.data||obj;
-  return d && (d.pendingExpenses===undefined||validPendingExpenses(d.pendingExpenses)) && Array.isArray(d.expenses) && Array.isArray(d.cards) && Array.isArray(d.onePayments) && Array.isArray(d.onePaymentCategories);
+  return d && (d.pendingExpenses===undefined||validPendingExpenses(d.pendingExpenses)) && Array.isArray(d.expenses) && d.expenses.every(e=>e?.linkType!=='installment-financing'||Link.linked(e)&&Number.isInteger(e.installments)&&e.installments>0&&Array.isArray(e.installmentAmounts)&&e.installmentAmounts.length===e.installments&&e.installmentAmounts.every(amount=>Number.isFinite(amount)&&amount>0)&&Array.isArray(e.installmentDueDates)&&e.installmentDueDates.length===e.installments&&e.installmentDueDates.every(date=>/^\d{4}-\d{2}-\d{2}$/.test(date))) && Array.isArray(d.cards) && Array.isArray(d.onePayments) && Array.isArray(d.onePaymentCategories);
 }
 $("backup").onclick=()=>go("backupScreen");
 $("downloadBackup").onclick=downloadBackup;
@@ -407,7 +409,8 @@ const editOneParam=params.get("editOne");
 if(requestedScreen==="addScreen"){
   if(editExpenseParam!==null){
     const e=s.expenses.find(x=>String(x.id)===String(editExpenseParam));
-    if(e){ editingId=String(e.id); populate(); $("desc").value=e.description; $("card").value=e.card; $("amount").value=e.monthly; $("installments").value=e.installments; $("start").value=e.start; $("expenseResponsible").value=purpose(e); setFormMode(true); go("addScreen"); }
+    if(e&&Link.linked(e)){go("home");openLinkedFinancing(e);}
+    else if(e){ editingId=String(e.id); populate(); $("desc").value=e.description; $("card").value=e.card; $("amount").value=e.monthly; $("installments").value=e.installments; $("start").value=e.start; $("expenseResponsible").value=purpose(e); setFormMode(true); go("addScreen"); }
     else { setFormMode(false); $("start").value=ym(selected); go("addScreen"); }
   } else { setFormMode(false); $("start").value=ym(selected); go("addScreen"); }
 }
