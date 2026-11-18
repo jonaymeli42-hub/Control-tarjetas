@@ -1,5 +1,11 @@
 # Control-tarjetas
 
+## Compras en cuotas vinculadas desde Préstamos
+
+Las financiaciones propias creadas en Control Préstamos pueden aparecer como un gasto en cuotas de la tarjeta. El vínculo conserva el consumo histórico independiente y crea una fila con ID estable, importes por cuota, meses de resumen, fechas de vencimiento, capital e intereses. Los importes se reflejan en las mismas pantallas y totales mensuales que los demás gastos en cuotas. Los registros vinculados se editan o eliminan desde Préstamos; Tarjetas ofrece abrir el origen. Los reintentos actualizan el mismo ID y no duplican consumos.
+
+Las financiaciones recibidas/cargos únicos existentes mantienen su vínculo de un solo pago. Las dos modalidades usan el mismo mecanismo local y sus respaldos Drive/JSON independientes; no comparten credenciales ni sincronizan dispositivos.
+
 ## Financiaciones vinculadas (27/10/2026)
 
 En Préstamos, la modalidad de tarjeta/cargos únicos ofrece «Registrar también en Control Tarjetas»: seleccionar tarjeta existente en esa app, fecha del consumo y mes de vencimiento. Crea un consumo en 1 pago por el total a devolver (capital + cargos), responsable y categoría Préstamos. Es optativo; los registros anteriores y las financiaciones mensuales siguen independientes. Los pagos no se vinculan.
