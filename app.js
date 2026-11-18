@@ -1,5 +1,4 @@
 import {consumeNativeNote,showNativeReturn} from './native-note-bridge.js?v=2';
-import {key as cardNameKey,unique as uniqueCardNames} from './card-options.js?v=1';
 import {createPendingExpenseStore,SHARED_PENDING_KEY,pendingOperationId,validPendingExpenses} from './pending-expenses.js?v=silent-1';
 import {parseVoiceExpense} from './voice-expense-parser.js?v=1';
 import {installmentMonths,moveInstallments,preserveSchedule} from './installment-schedule.js?v=1';
@@ -16,6 +15,7 @@ if('ResizeObserver' in window)new ResizeObserver(measureCardsHeader).observe(car
 else window.addEventListener('resize',measureCardsHeader);
 const KEY="tarjetas_app_v3";
 const Link=window.FinancingLink;
+const {key:cardNameKey,unique:uniqueCardNames}=window.CardOptions;
 function availableCardNames(){let loans=[];try{const saved=JSON.parse(localStorage.getItem(Link.SOURCE));if(Array.isArray(saved?.cards))loans=saved.cards.filter(name=>typeof name==='string');}catch{}return uniqueCardNames([...s.cards.map(c=>c.name),...loans]);}
 function ensureCardConfigured(name){const clean=String(name??'').trim();if(clean&&!s.cards.some(card=>cardNameKey(card.name)===cardNameKey(clean)))s.cards.push({name:clean,color:"#4b5563"});}
 let stateSnapshot;
